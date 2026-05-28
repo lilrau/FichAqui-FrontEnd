@@ -8,17 +8,32 @@ export function getAvailableVariants(product: MenuProduct): MenuVariant[] {
   return product.variants.filter((variant) => variant.available);
 }
 
-export function getProductPriceDisplay(product: MenuProduct): string {
+export function getProductPriceParts(
+  product: MenuProduct
+):
+  | { kind: 'unavailable' }
+  | { kind: 'free' }
+  | { kind: 'single'; price: string }
+  | { kind: 'from'; price: string } {
   const prices = getAvailableVariants(product).map((variant) => variant.price);
 
-  if (prices.length === 0) return 'Indisponível';
+  if (prices.length === 0) return { kind: 'unavailable' };
 
   const min = Math.min(...prices);
   const max = Math.max(...prices);
 
-  if (min === 0 && max === 0) return 'Grátis';
-  if (min === max) return `R$ ${min.toFixed(2)}`;
-  return `A partir de R$ ${min.toFixed(2)}`;
+  if (min === 0 && max === 0) return { kind: 'free' };
+  if (min === max) return { kind: 'single', price: `R$ ${min.toFixed(2)}` };
+  return { kind: 'from', price: `R$ ${min.toFixed(2)}` };
+}
+
+export function getProductPriceDisplay(product: MenuProduct): string {
+  const parts = getProductPriceParts(product);
+
+  if (parts.kind === 'unavailable') return 'Indisponível';
+  if (parts.kind === 'free') return 'Grátis';
+  if (parts.kind === 'single') return parts.price;
+  return `A partir de ${parts.price}`;
 }
 
 export function variantToMenuItem(product: MenuProduct, variant: MenuVariant): MenuItem {
@@ -33,7 +48,6 @@ export function variantToMenuItem(product: MenuProduct, variant: MenuVariant): M
     description: product.description,
     price: variant.price,
     category: product.category,
-    estimatedTime: product.estimatedTime,
     image: product.image,
     badge: variant.badge ?? product.badge,
     available: product.available && variant.available,

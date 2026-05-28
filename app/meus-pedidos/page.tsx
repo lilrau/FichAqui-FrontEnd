@@ -14,8 +14,6 @@ const mockOrders: Order[] = [
     id: 'order-1',
     number: '1234',
     items: [
-      { item: { id: 'pastel-carne', productId: 'pastel', name: 'Pastel — Carne', description: '', price: 8, category: 'comidas', estimatedTime: '5min', image: '🥟', available: true, stallId: '1' }, quantity: 2 },
-      { item: { id: 'milho-verde-unidade', productId: 'milho-verde', name: 'Milho Verde', description: '', price: 6, category: 'comidas', estimatedTime: '3min', image: '🌽', available: true, stallId: '2' }, quantity: 1 },
     ],
     total: 22,
     status: 'ready',
@@ -26,7 +24,6 @@ const mockOrders: Order[] = [
     id: 'order-2',
     number: '1189',
     items: [
-      { item: { id: 'quentao-copo', productId: 'quentao', name: 'Quentão', description: '', price: 6, category: 'bebidas', estimatedTime: '2min', image: '🍵', available: true, stallId: '4' }, quantity: 2 },
     ],
     total: 12,
     status: 'delivered',
@@ -37,8 +34,6 @@ const mockOrders: Order[] = [
     id: 'order-3',
     number: '1156',
     items: [
-      { item: { id: 'maca-amor-unidade', productId: 'maca-amor', name: 'Maçã do Amor', description: '', price: 8, category: 'doces', estimatedTime: '2min', image: '🍎', available: true, stallId: '3' }, quantity: 3 },
-      { item: { id: 'bingo-cartela', productId: 'bingo', name: 'Cartela de Bingo', description: '', price: 5, category: 'brincadeiras', estimatedTime: '30min', image: '🎱', available: true, stallId: '6' }, quantity: 2 },
     ],
     total: 34,
     status: 'delivered',

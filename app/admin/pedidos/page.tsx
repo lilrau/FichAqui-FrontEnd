@@ -22,8 +22,6 @@ const generateMockOrders = (): Order[] => [
     id: 'adm-1',
     number: '1247',
     items: [
-      { item: { id: 'pastel-carne', productId: 'pastel', name: 'Pastel — Carne', description: '', price: 8, category: 'comidas', estimatedTime: '5min', image: '🥟', available: true, stallId: '1' }, quantity: 3 },
-      { item: { id: 'refrigerante-coca', productId: 'refrigerante', name: 'Refrigerante — Coca-Cola', description: '', price: 5, category: 'bebidas', estimatedTime: '1min', image: '🥤', available: true, stallId: '4' }, quantity: 2 },
     ],
     total: 34,
     status: 'pending',
@@ -34,7 +32,6 @@ const generateMockOrders = (): Order[] => [
     id: 'adm-2',
     number: '1246',
     items: [
-      { item: { id: 'espetinho-carne-unidade', productId: 'espetinho-carne', name: 'Espetinho de Carne', description: '', price: 12, category: 'comidas', estimatedTime: '10min', image: '🍢', available: true, stallId: '2' }, quantity: 4 },
     ],
     total: 48,
     status: 'preparing',
@@ -45,8 +42,6 @@ const generateMockOrders = (): Order[] => [
     id: 'adm-3',
     number: '1245',
     items: [
-      { item: { id: 'quentao-copo', productId: 'quentao', name: 'Quentão', description: '', price: 6, category: 'bebidas', estimatedTime: '2min', image: '🍵', available: true, stallId: '4' }, quantity: 2 },
-      { item: { id: 'maca-amor-unidade', productId: 'maca-amor', name: 'Maçã do Amor', description: '', price: 8, category: 'doces', estimatedTime: '2min', image: '🍎', available: true, stallId: '3' }, quantity: 1 },
     ],
     total: 20,
     status: 'ready',
@@ -57,7 +52,6 @@ const generateMockOrders = (): Order[] => [
     id: 'adm-4',
     number: '1244',
     items: [
-      { item: { id: 'milho-verde-unidade', productId: 'milho-verde', name: 'Milho Verde', description: '', price: 6, category: 'comidas', estimatedTime: '3min', image: '🌽', available: true, stallId: '2' }, quantity: 2 },
     ],
     total: 12,
     status: 'delivered',
@@ -68,7 +62,6 @@ const generateMockOrders = (): Order[] => [
     id: 'adm-5',
     number: '1243',
     items: [
-      { item: { id: 'bingo-cartela', productId: 'bingo', name: 'Cartela de Bingo', description: '', price: 5, category: 'brincadeiras', estimatedTime: '30min', image: '🎱', available: true, stallId: '6' }, quantity: 5 },
     ],
     total: 25,
     status: 'pending',

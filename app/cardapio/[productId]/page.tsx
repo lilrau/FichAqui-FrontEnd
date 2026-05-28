@@ -3,9 +3,10 @@
 import { use, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Clock, Flame } from 'lucide-react';
+import { ChevronLeft, Flame } from 'lucide-react';
 import { menuProducts } from '@/lib/mock-data';
-import { getProductById, getProductPriceDisplay } from '@/lib/menu-utils';
+import { getProductById } from '@/lib/menu-utils';
+import { ProductPriceDisplay } from '@/components/product-price-display';
 import { MenuVariantRow } from '@/components/menu-item-card';
 
 interface ProductPageProps {
@@ -26,8 +27,6 @@ export default function ProductPage({ params }: ProductPageProps) {
   if (!product || !product.available) {
     return null;
   }
-
-  const priceLabel = getProductPriceDisplay(product);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -69,12 +68,8 @@ export default function ProductPage({ params }: ProductPageProps) {
               <p className="mt-1 text-muted-foreground">{product.description}</p>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>{product.estimatedTime}</span>
-              </div>
-              <span className="text-xl font-bold text-primary">{priceLabel}</span>
+            <div className="flex justify-end">
+              <ProductPriceDisplay product={product} />
             </div>
           </div>
         </motion.div>

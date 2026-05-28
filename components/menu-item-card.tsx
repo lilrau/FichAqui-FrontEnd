@@ -2,15 +2,15 @@
 
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Minus, Plus, Clock, Flame, ChevronRight } from 'lucide-react';
+import { Minus, Plus, Flame, ChevronRight } from 'lucide-react';
 import { MenuItem, MenuProduct, MenuVariant } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
 import {
   getProductCartQuantity,
-  getProductPriceDisplay,
   hasMultipleVariants,
   variantToMenuItem,
 } from '@/lib/menu-utils';
+import { ProductPriceDisplay } from '@/components/product-price-display';
 import { cn } from '@/lib/utils';
 
 interface MenuItemCardItemProps {
@@ -40,7 +40,6 @@ function MenuProductCard({ product }: { product: MenuProduct }) {
   const { items, addItem, updateQuantity } = useCart();
   const isMultiVariant = hasMultipleVariants(product);
   const quantity = getProductCartQuantity(product, items);
-  const priceLabel = getProductPriceDisplay(product);
   const singleVariantItem = !isMultiVariant
     ? variantToMenuItem(product, product.variants[0])
     : null;
@@ -97,14 +96,9 @@ function MenuProductCard({ product }: { product: MenuProduct }) {
           {product.description}
         </p>
 
-        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" />
-          <span>{product.estimatedTime}</span>
-        </div>
+        <ProductPriceDisplay product={product} className="mt-3" />
 
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-xl font-bold text-primary">{priceLabel}</span>
-
+        <div className="mt-3 flex items-center justify-end">
           {isMultiVariant ? (
             <div className="flex items-center gap-2">
               {quantity > 0 && (
@@ -195,16 +189,11 @@ function MenuItemCardCompact({
             {item.description}
           </p>
 
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" />
-            <span>{item.estimatedTime}</span>
-          </div>
+          <span className="mt-3 block text-xl font-bold text-primary">
+            {item.price === 0 ? 'Grátis' : `R$ ${item.price.toFixed(2)}`}
+          </span>
 
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-xl font-bold text-primary">
-              {item.price === 0 ? 'Grátis' : `R$ ${item.price.toFixed(2)}`}
-            </span>
-
+          <div className="mt-3 flex items-center justify-end">
             {quantity === 0 ? (
               <motion.button
                 whileTap={{ scale: 0.9 }}

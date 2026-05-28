@@ -12,7 +12,6 @@ export interface MenuProduct {
   name: string;
   description: string;
   category: string;
-  estimatedTime: string;
   image: string;
   badge?: string;
   available: boolean;
@@ -27,7 +26,6 @@ export interface MenuItem {
   description: string;
   price: number;
   category: string;
-  estimatedTime: string;
   image: string;
   badge?: string;
   available: boolean;
@@ -139,7 +137,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Pastel',
     description: 'Pastel crocante frito na hora, recheado à sua escolha',
     category: 'comidas',
-    estimatedTime: '5 min',
     image: '🥟',
     badge: 'Mais vendido',
     available: true,
@@ -154,7 +151,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Milho Verde',
     description: 'Espiga de milho fresquinho com manteiga',
     category: 'comidas',
-    estimatedTime: '3 min',
     image: '🌽',
     badge: 'Tradicional',
     available: true,
@@ -166,7 +162,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Cachorro Quente',
     description: 'Pão, salsicha, molho, batata palha e muito mais',
     category: 'comidas',
-    estimatedTime: '5 min',
     image: '🌭',
     available: true,
     stallId: 'stall-2',
@@ -177,7 +172,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Espetinho de Carne',
     description: 'Espetinho grelhado na hora, bem temperado',
     category: 'comidas',
-    estimatedTime: '10 min',
     image: '🍢',
     badge: 'Popular',
     available: true,
@@ -189,7 +183,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Caldo Verde',
     description: 'Caldo quentinho de couve com linguiça',
     category: 'comidas',
-    estimatedTime: '3 min',
     image: '🥣',
     available: true,
     stallId: 'stall-2',
@@ -200,7 +193,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Maçã do Amor',
     description: 'Maçã coberta com calda vermelha crocante',
     category: 'doces',
-    estimatedTime: '2 min',
     image: '🍎',
     badge: 'Clássico',
     available: true,
@@ -212,7 +204,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Canjica',
     description: 'Canjica cremosa com canela e coco',
     category: 'doces',
-    estimatedTime: '2 min',
     image: '🥛',
     available: true,
     stallId: 'stall-3',
@@ -223,7 +214,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Paçoca',
     description: 'Doce de amendoim tradicional',
     category: 'doces',
-    estimatedTime: '1 min',
     image: '🥜',
     available: true,
     stallId: 'stall-3',
@@ -234,7 +224,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Pé de Moleque',
     description: 'Rapadura com amendoim crocante',
     category: 'doces',
-    estimatedTime: '1 min',
     image: '🍬',
     available: true,
     stallId: 'stall-3',
@@ -245,7 +234,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Cocada',
     description: 'Doce de coco caramelizado',
     category: 'doces',
-    estimatedTime: '1 min',
     image: '🥥',
     available: true,
     stallId: 'stall-3',
@@ -256,7 +244,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Quentão',
     description: 'Bebida quente com gengibre e especiarias',
     category: 'bebidas',
-    estimatedTime: '2 min',
     image: '🍵',
     badge: 'Esquenta!',
     available: true,
@@ -268,7 +255,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Vinho Quente',
     description: 'Vinho temperado com canela e cravo',
     category: 'bebidas',
-    estimatedTime: '2 min',
     image: '🍷',
     available: true,
     stallId: 'stall-4',
@@ -279,7 +265,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Refrigerante',
     description: 'Lata 350ml gelada',
     category: 'bebidas',
-    estimatedTime: '1 min',
     image: '🥤',
     available: true,
     stallId: 'stall-4',
@@ -294,7 +279,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Água Mineral',
     description: 'Garrafa 500ml',
     category: 'bebidas',
-    estimatedTime: '1 min',
     image: '💧',
     available: true,
     stallId: 'stall-4',
@@ -305,7 +289,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Suco Natural',
     description: 'Copo 300ml feito na hora',
     category: 'bebidas',
-    estimatedTime: '3 min',
     image: '🧃',
     available: true,
     stallId: 'stall-4',
@@ -319,7 +302,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Pescaria',
     description: 'Pesque um peixe e ganhe um prêmio!',
     category: 'jogos',
-    estimatedTime: '5 min',
     image: '🎣',
     badge: 'Diversão',
     available: true,
@@ -331,7 +313,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Argolas',
     description: 'Acerte as argolas e ganhe brindes',
     category: 'jogos',
-    estimatedTime: '3 min',
     image: '🎯',
     available: true,
     stallId: 'stall-5',
@@ -342,7 +323,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Tiro ao Alvo',
     description: 'Teste sua pontaria!',
     category: 'jogos',
-    estimatedTime: '3 min',
     image: '🎯',
     available: true,
     stallId: 'stall-5',
@@ -353,7 +333,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Cartela de Bingo',
     description: 'Concorra a prêmios incríveis!',
     category: 'brincadeiras',
-    estimatedTime: '30 min',
     image: '🎱',
     badge: 'Prêmios!',
     available: true,
@@ -365,7 +344,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Correio Elegante',
     description: 'Envie uma mensagem secreta para alguém especial',
     category: 'brincadeiras',
-    estimatedTime: '5 min',
     image: '💌',
     badge: 'Romântico',
     available: true,
@@ -377,7 +355,6 @@ export const menuProducts: MenuProduct[] = [
     name: 'Quadrilha',
     description: 'Participe da dança tradicional',
     category: 'brincadeiras',
-    estimatedTime: '20 min',
     image: '💃',
     badge: 'Grátis',
     available: true,
@@ -401,7 +378,6 @@ function buildMenuItemsFromProducts(products: MenuProduct[]): MenuItem[] {
         description: product.description,
         price: variant.price,
         category: product.category,
-        estimatedTime: product.estimatedTime,
         image: product.image,
         badge: variant.badge ?? product.badge,
         available: product.available && variant.available,
