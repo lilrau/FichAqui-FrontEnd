@@ -52,14 +52,38 @@ export interface Stall {
   stock: number;
 }
 
+export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered';
+
 export interface Order {
   id: string;
   number: string;
   items: { item: MenuItem; quantity: number }[];
   total: number;
-  status: 'pending' | 'preparing' | 'ready' | 'delivered';
+  status: OrderStatus;
   createdAt: Date;
   qrCode: string;
+}
+
+export interface Ficha {
+  id: string;
+  orderId: string;
+  itemName: string;
+  itemImage: string;
+  stallId: string;
+  qrCode: string;
+  status: OrderStatus;
+}
+
+export function getFichasFromOrder(order: Order): Ficha[] {
+  return order.items.map((cartItem, index) => ({
+    id: `${order.id}-ficha-${index}`,
+    orderId: order.id,
+    itemName: cartItem.item.name,
+    itemImage: cartItem.item.image,
+    stallId: cartItem.item.stallId,
+    qrCode: `${order.qrCode}-${cartItem.item.id}`,
+    status: order.status,
+  }));
 }
 
 export interface Event {

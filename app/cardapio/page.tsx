@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { MapPin, Clock, User, Receipt, Search, X } from 'lucide-react';
+import { MapPin, Clock, User, ShoppingCart, Search, X } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { menuProducts, categories, currentEvent } from '@/lib/mock-data';
 import { productMatchesSearch } from '@/lib/menu-utils';
@@ -62,7 +62,7 @@ function CardapioContent() {
                 onClick={() => router.push('/meus-pedidos')}
                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground relative"
               >
-                <Receipt className="h-5 w-5" />
+                <ShoppingCart className="h-5 w-5" />
               </button>
               <button
                 onClick={() => router.push('/')}
@@ -81,7 +81,7 @@ function CardapioContent() {
                 transition={{ repeat: Infinity, duration: 1.5 }}
                 className="h-2 w-2 rounded-full bg-green-500"
               />
-              <span className="font-medium">Aberto agora</span>
+              <span className="font-medium">Ingressos à venda</span>
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />

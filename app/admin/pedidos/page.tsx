@@ -80,7 +80,7 @@ const generateMockOrders = (): Order[] => [
 const statusConfig = {
   pending: { label: 'Aguardando', icon: Clock, color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
   preparing: { label: 'Preparando', icon: ChefHat, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
-  ready: { label: 'Pronto', icon: Package, color: 'text-green-500', bgColor: 'bg-green-500/10' },
+  ready: { label: 'Disponível', icon: Package, color: 'text-green-500', bgColor: 'bg-green-500/10' },
   delivered: { label: 'Entregue', icon: Check, color: 'text-muted-foreground', bgColor: 'bg-muted' },
 };
 
@@ -126,7 +126,7 @@ export default function AdminPedidosPage() {
     { label: 'Todos', value: 'all', count: orders.length },
     { label: 'Aguardando', value: 'pending', count: orders.filter((o) => o.status === 'pending').length },
     { label: 'Preparando', value: 'preparing', count: orders.filter((o) => o.status === 'preparing').length },
-    { label: 'Pronto', value: 'ready', count: orders.filter((o) => o.status === 'ready').length },
+    { label: 'Disponível', value: 'ready', count: orders.filter((o) => o.status === 'ready').length },
   ];
 
   return (
@@ -231,7 +231,7 @@ export default function AdminPedidosPage() {
                       className="rounded-xl"
                     >
                       {nextStatus === 'preparing' && 'Iniciar Preparo'}
-                      {nextStatus === 'ready' && 'Marcar Pronto'}
+                      {nextStatus === 'ready' && 'Marcar Disponível'}
                       {nextStatus === 'delivered' && 'Confirmar Entrega'}
                     </Button>
                   )}

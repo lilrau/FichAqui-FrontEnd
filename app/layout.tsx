@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Nunito } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { CartProvider } from '@/lib/cart-context'
 import './globals.css'
 
 const nunito = Nunito({ 
@@ -31,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="bg-background">
       <body className={`${nunito.variable} font-sans antialiased min-h-screen`}>
-        {children}
+        <CartProvider>{children}</CartProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

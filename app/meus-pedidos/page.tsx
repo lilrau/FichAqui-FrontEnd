@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Clock, Check, ChefHat, Package } from 'lucide-react';
-import { Order } from '@/lib/mock-data';
+import { ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { useCart } from '@/lib/cart-context';
+import { getFichasFromOrder, Order } from '@/lib/mock-data';
+import { statusConfig } from '@/lib/order-status-config';
+import { FichaCard } from '@/components/ficha-card';
 
-// Pedidos mockados para demonstração
 const mockOrders: Order[] = [
   {
     id: 'order-1',
@@ -45,36 +47,11 @@ const mockOrders: Order[] = [
   },
 ];
 
-const statusConfig = {
-  pending: {
-    label: 'Aguardando',
-    icon: Clock,
-    color: 'text-amber-500',
-    bgColor: 'bg-amber-500/10',
-  },
-  preparing: {
-    label: 'Preparando',
-    icon: ChefHat,
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-500/10',
-  },
-  ready: {
-    label: 'Pronto',
-    icon: Package,
-    color: 'text-green-500',
-    bgColor: 'bg-green-500/10',
-  },
-  delivered: {
-    label: 'Entregue',
-    icon: Check,
-    color: 'text-muted-foreground',
-    bgColor: 'bg-muted',
-  },
-};
-
 export default function MeusPedidosPage() {
   const router = useRouter();
-  const [orders] = useState(mockOrders);
+  const { orders: cartOrders } = useCart();
+  const orders = cartOrders.length > 0 ? cartOrders : mockOrders;
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const formatTime = (date: Date) => {
     const minutes = Math.floor((Date.now() - date.getTime()) / 1000 / 60);
@@ -83,9 +60,12 @@ export default function MeusPedidosPage() {
     return `${hours}h atrás`;
   };
 
+  const toggleOrder = (orderId: string) => {
+    setExpandedOrderId((current) => (current === orderId ? null : orderId));
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 py-4">
           <button
@@ -116,6 +96,8 @@ export default function MeusPedidosPage() {
             {orders.map((order, index) => {
               const status = statusConfig[order.status];
               const Icon = status.icon;
+              const fichas = getFichasFromOrder(order);
+              const isExpanded = expandedOrderId === order.id;
 
               return (
                 <motion.div
@@ -125,7 +107,6 @@ export default function MeusPedidosPage() {
                   transition={{ delay: index * 0.1 }}
                   className="rounded-2xl bg-card p-4 shadow-md border border-border"
                 >
-                  {/* Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${status.bgColor}`}>
@@ -141,7 +122,6 @@ export default function MeusPedidosPage() {
                     </span>
                   </div>
 
-                  {/* Items */}
                   <div className="mt-4 space-y-2">
                     {order.items.map((cartItem) => (
                       <div
@@ -156,13 +136,35 @@ export default function MeusPedidosPage() {
                     ))}
                   </div>
 
-                  {/* Footer */}
                   <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Total</span>
                     <span className="font-bold text-foreground">
                       R$ {order.total.toFixed(2)}
                     </span>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleOrder(order.id)}
+                    className="mt-4 w-full flex items-center justify-between rounded-xl bg-secondary px-4 py-3 text-sm font-semibold text-foreground"
+                  >
+                    <span>
+                      {isExpanded ? 'Ocultar fichas' : `Ver fichas (${fichas.length})`}
+                    </span>
+                    {isExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mt-4 space-y-3">
+                      {fichas.map((ficha) => (
+                        <FichaCard key={ficha.id} ficha={ficha} compact />
+                      ))}
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
