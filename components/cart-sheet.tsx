@@ -174,10 +174,10 @@ export function FloatingCartButton({ onClick }: FloatingCartButtonProps) {
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       className={cn(
-        "fixed bottom-24 left-4 right-4 z-50",
-        "flex items-center justify-between",
-        "h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30",
-        "text-primary-foreground"
+        'fixed bottom-24 left-4 right-4 z-50',
+        'flex items-center justify-between',
+        'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
+        'text-primary-foreground'
       )}
     >
       <div className="flex items-center gap-3">
@@ -190,5 +190,44 @@ export function FloatingCartButton({ onClick }: FloatingCartButtonProps) {
       </div>
       <span className="text-lg font-bold">R$ {total.toFixed(2)}</span>
     </motion.button>
+  );
+}
+
+interface FloatingOrderButtonProps {
+  visible: boolean;
+  onClick: () => void;
+}
+
+export function FloatingOrderButton({ visible, onClick }: FloatingOrderButtonProps) {
+  const { total } = useCart();
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.button
+          key="floating-order"
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onClick}
+          className={cn(
+            'fixed bottom-32 left-4 right-4 z-50',
+            'flex items-center justify-between gap-3',
+            'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
+            'text-primary-foreground'
+          )}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
+              <ShoppingBag className="h-5 w-5" />
+            </div>
+            <span className="truncate text-left font-semibold">Pagar e emitir fichas</span>
+          </div>
+          <span className="shrink-0 text-lg font-bold">R$ {total.toFixed(2)}</span>
+        </motion.button>
+      )}
+    </AnimatePresence>
   );
 }
