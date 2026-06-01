@@ -84,6 +84,7 @@ export default function PerfilPage() {
           </button>
           <button
             type="button"
+            onClick={() => router.push('/metodos-pagamento')}
             className="flex w-full items-center justify-between px-4 py-4 text-left"
           >
             <div className="flex items-center gap-3">

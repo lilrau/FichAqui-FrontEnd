@@ -120,6 +120,42 @@ export const mockAvailableFichas: Ficha[] = [
 
 export const mockWalletBalance = 46;
 
+export type CardBrand = 'visa' | 'mastercard' | 'elo';
+
+export interface SavedPaymentCard {
+  id: string;
+  brand: CardBrand;
+  lastFour: string;
+  holderName: string;
+  holderCpf: string;
+  expiryMonth: string;
+  expiryYear: string;
+  isDefault: boolean;
+}
+
+export const mockSavedPaymentCards: SavedPaymentCard[] = [
+  {
+    id: 'card-1',
+    brand: 'visa',
+    lastFour: '4242',
+    holderName: 'Maria Silva',
+    holderCpf: '123.456.789-09',
+    expiryMonth: '08',
+    expiryYear: '28',
+    isDefault: true,
+  },
+  {
+    id: 'card-2',
+    brand: 'mastercard',
+    lastFour: '5555',
+    holderName: 'Maria Silva',
+    holderCpf: '123.456.789-09',
+    expiryMonth: '12',
+    expiryYear: '27',
+    isDefault: false,
+  },
+];
+
 export interface Event {
   id: string;
   name: string;
