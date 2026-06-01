@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, X, Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
@@ -16,26 +18,29 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
   const { items, updateQuantity, removeItem, total, clearCart } = useCart();
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-50 bg-foreground/20 backdrop-blur-sm"
-          />
+    <BodyPortal>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="cart-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 z-[60] bg-foreground/20 backdrop-blur-sm"
+            />
 
-          {/* Sheet */}
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-3xl bg-card shadow-2xl"
-          >
+            {/* Sheet */}
+            <motion.div
+              key="cart-sheet"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-[60] max-h-[85vh] rounded-t-3xl bg-card shadow-2xl"
+            >
             {/* Handle */}
             <div className="flex justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-border" />
@@ -150,46 +155,66 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
                 </Button>
               </div>
             )}
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </BodyPortal>
   );
 }
 
+function BodyPortal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(children, document.body);
+}
+
 interface FloatingCartButtonProps {
+  visible: boolean;
   onClick: () => void;
 }
 
-export function FloatingCartButton({ onClick }: FloatingCartButtonProps) {
+export function FloatingCartButton({ visible, onClick }: FloatingCartButtonProps) {
   const { itemCount, total } = useCart();
 
-  if (itemCount === 0) return null;
-
   return (
-    <motion.button
-      initial={{ y: 100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 100, opacity: 0 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={cn(
-        'fixed bottom-24 left-4 right-4 z-50',
-        'flex items-center justify-between',
-        'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
-        'text-primary-foreground'
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-foreground/20">
-          <ShoppingBag className="h-5 w-5" />
-        </div>
-        <span className="font-semibold">
-          {itemCount} {itemCount === 1 ? 'item' : 'itens'}
-        </span>
-      </div>
-      <span className="text-lg font-bold">R$ {total.toFixed(2)}</span>
-    </motion.button>
+    <BodyPortal>
+      <AnimatePresence>
+        {visible && (
+          <motion.button
+            key="floating-cart"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClick}
+            className={cn(
+              'fixed bottom-32 left-4 right-4 z-50',
+              'flex items-center justify-between',
+              'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
+              'text-primary-foreground'
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-foreground/20">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <span className="font-semibold">
+                {itemCount} {itemCount === 1 ? 'item' : 'itens'}
+              </span>
+            </div>
+            <span className="text-lg font-bold">R$ {total.toFixed(2)}</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </BodyPortal>
   );
 }
 
@@ -202,32 +227,34 @@ export function FloatingOrderButton({ visible, onClick }: FloatingOrderButtonPro
   const { total } = useCart();
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.button
-          key="floating-order"
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onClick}
-          className={cn(
-            'fixed bottom-32 left-4 right-4 z-50',
-            'flex items-center justify-between gap-3',
-            'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
-            'text-primary-foreground'
-          )}
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
-              <ShoppingBag className="h-5 w-5" />
+    <BodyPortal>
+      <AnimatePresence>
+        {visible && (
+          <motion.button
+            key="floating-order"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onClick}
+            className={cn(
+              'fixed bottom-32 left-4 right-4 z-50',
+              'flex items-center justify-between gap-3',
+              'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
+              'text-primary-foreground'
+            )}
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <span className="truncate text-left font-semibold">Pagar e emitir fichas</span>
             </div>
-            <span className="truncate text-left font-semibold">Pagar e emitir fichas</span>
-          </div>
-          <span className="shrink-0 text-lg font-bold">R$ {total.toFixed(2)}</span>
-        </motion.button>
-      )}
-    </AnimatePresence>
+            <span className="shrink-0 text-lg font-bold">R$ {total.toFixed(2)}</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </BodyPortal>
   );
 }
