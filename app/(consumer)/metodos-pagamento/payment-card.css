@@ -283,3 +283,15 @@
   width: 100%;
   max-width: 100%;
 }
+
+.payment-card--saved .payment-card__front {
+  position: relative;
+}
+
+.payment-card__number--static {
+  letter-spacing: 0.12em;
+}
+
+.payment-card__expires-value--static {
+  gap: 0.15em;
+}

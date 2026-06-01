@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Star, Trash2 } from 'lucide-react';
 import {
-  CARD_BRAND_LABELS,
   CardBrand,
   detectCardNetwork,
   getCardNumberLength,
@@ -14,7 +13,7 @@ import { SavedPaymentCard, mockSavedPaymentCards } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { SavedCreditCard } from '@/components/saved-credit-card';
 import {
   Dialog,
   DialogContent,
@@ -38,25 +37,6 @@ import {
   CardHighlightField,
   InteractiveCreditCard,
 } from '@/components/interactive-credit-card';
-
-const brandGradients: Partial<Record<CardBrand, string>> = {
-  visa: 'from-blue-600 to-blue-900',
-  mastercard: 'from-red-600 to-orange-700',
-  amex: 'from-sky-600 to-blue-900',
-  discover: 'from-orange-500 to-amber-700',
-  diners: 'from-slate-600 to-slate-900',
-  jcb: 'from-emerald-600 to-teal-900',
-  elo: 'from-amber-500 to-emerald-800',
-  hipercard: 'from-red-700 to-rose-900',
-  banese: 'from-green-600 to-emerald-900',
-  cabal: 'from-indigo-600 to-violet-900',
-  sorocred: 'from-cyan-600 to-blue-800',
-  valecard: 'from-lime-600 to-green-900',
-};
-
-function getBrandGradient(brand: CardBrand): string {
-  return brandGradients[brand] ?? 'from-zinc-600 to-zinc-900';
-}
 
 const emptyForm = {
   number: '',
@@ -85,50 +65,6 @@ function formatCpf(value: string) {
     return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
   }
   return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}
-
-function SavedCardVisual({ card }: { card: SavedPaymentCard }) {
-  const label = CARD_BRAND_LABELS[card.brand];
-  const gradient = getBrandGradient(card.brand);
-
-  return (
-    <div
-      className={cn(
-        'relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white shadow-lg',
-        gradient
-      )}
-    >
-      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" />
-      <div className="absolute -bottom-8 -left-4 h-28 w-28 rounded-full bg-white/10" />
-      <div className="relative space-y-6">
-        <div className="flex items-start justify-between gap-2">
-          <span className="text-sm font-medium text-white/90">{label}</span>
-          {card.isDefault && (
-            <Badge className="border-white/30 bg-white/20 text-white hover:bg-white/20">
-              Padrão
-            </Badge>
-          )}
-        </div>
-        <p className="font-mono text-lg tracking-widest">
-          •••• •••• •••• {card.lastFour}
-        </p>
-        <div className="flex items-end justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-white/70">Titular</p>
-            <p className="truncate text-sm font-medium">{card.holderName}</p>
-            <p className="mt-2 text-xs text-white/70">CPF do titular</p>
-            <p className="text-sm font-medium">{card.holderCpf}</p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-xs text-white/70">Validade</p>
-            <p className="text-sm font-medium">
-              {card.expiryMonth}/{card.expiryYear}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function MetodosPagamentoPage() {
@@ -279,6 +215,18 @@ export default function MetodosPagamentoPage() {
           Gerencie os cartões salvos para recargas e pagamentos no evento.
         </p>
 
+        <Button
+          type="button"
+          className="h-12 w-full rounded-xl font-semibold"
+          onClick={() => {
+            resetForm();
+            setIsAddOpen(true);
+          }}
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar cartão
+        </Button>
+
         {cards.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -303,7 +251,9 @@ export default function MetodosPagamentoPage() {
                 transition={{ delay: index * 0.05 }}
                 className="space-y-3"
               >
-                <SavedCardVisual card={card} />
+                <div className="payment-card-shell">
+                  <SavedCreditCard card={card} />
+                </div>
                 <div className="flex gap-2">
                   {!card.isDefault && (
                     <Button
@@ -335,18 +285,6 @@ export default function MetodosPagamentoPage() {
             ))}
           </div>
         )}
-
-        <Button
-          type="button"
-          className="h-12 w-full rounded-xl font-semibold"
-          onClick={() => {
-            resetForm();
-            setIsAddOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Adicionar cartão
-        </Button>
       </main>
 
       <Dialog
