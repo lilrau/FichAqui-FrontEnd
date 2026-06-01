@@ -50,18 +50,25 @@ function useAnimatedDigitSlots(
   const normalized = rawDigits.replace(/\D/g, '').slice(0, maxLen);
   const [slots, setSlots] = useState<DigitSlot[]>(() => buildEmptySlots(maxLen));
   const prevLenRef = useRef(0);
+  const prevNormalizedRef = useRef('');
   const prevMaxLenRef = useRef(maxLen);
+  const mapCharRef = useRef(mapChar);
+  mapCharRef.current = mapChar;
 
   useEffect(() => {
     const len = normalized.length;
+    const map = mapCharRef.current;
+    const prev = prevLenRef.current;
+    const delta = len - prev;
 
     if (maxLen !== prevMaxLenRef.current) {
       setSlots(
         len > 0
-          ? buildSlotsFromDigits(normalized, maxLen, mapChar)
+          ? buildSlotsFromDigits(normalized, maxLen, map)
           : buildEmptySlots(maxLen)
       );
       prevLenRef.current = len;
+      prevNormalizedRef.current = normalized;
       prevMaxLenRef.current = maxLen;
       return;
     }
@@ -69,22 +76,27 @@ function useAnimatedDigitSlots(
     if (len === 0) {
       setSlots(buildEmptySlots(maxLen));
       prevLenRef.current = 0;
+      prevNormalizedRef.current = '';
       return;
     }
 
-    const prev = prevLenRef.current;
+    if (normalized === prevNormalizedRef.current) {
+      return;
+    }
 
-    if (prev > len) {
+    if (delta === 0 || Math.abs(delta) > 1) {
+      setSlots(buildSlotsFromDigits(normalized, maxLen, map));
+    } else if (delta === -1) {
       setSlots((current) => {
         const next = current.map((slot) => ({ ...slot }));
         next[len] = { bottom: '', filed: false };
         return next;
       });
-    } else if (len > prev) {
+    } else {
       setSlots((current) => {
         const next = current.map((slot) => ({ ...slot }));
         next[len - 1] = {
-          bottom: mapChar(len - 1, normalized[len - 1]),
+          bottom: map(len - 1, normalized[len - 1]),
           filed: true,
         };
         return next;
@@ -92,7 +104,8 @@ function useAnimatedDigitSlots(
     }
 
     prevLenRef.current = len;
-  }, [normalized, maxLen, mapChar]);
+    prevNormalizedRef.current = normalized;
+  }, [normalized, maxLen]);
 
   return slots.length === maxLen
     ? slots

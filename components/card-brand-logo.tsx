@@ -20,22 +20,6 @@ const logoMotion = {
   transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const },
 };
 
-function VisaLogo() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 48 16"
-      className="h-8 max-h-full w-auto max-w-full"
-      aria-hidden
-    >
-      <path
-        fill="#fff"
-        d="M19.2 15.2h-3.1L16.5 4.5h3.1l-.4 10.7zm11.8-10.4c-.6-.2-1.6-.5-2.8-.5-3.1 0-5.2 1.6-5.2 4 0 1.7 1.6 2.7 2.8 3.3 1.2.6 1.7 1 1.7 1.5 0 .8-1 1.2-2 1.2-1.3 0-2-.3-3.1-.9l-.4-.2-.5 2.8c.8.4 2.3.7 3.8.7 3.3 0 5.4-1.6 5.5-4 .1-1.4-.9-2.4-2.8-3.3-1.2-.6-1.9-1-1.9-1.6 0-.5.6-1.1 1.9-1.1 1.1 0 1.9.2 2.5.5l.3.1.5-2.7zm8.2 6.6c.5-1.3 2.5-6.2 2.5-6.2h-2.9c0 0-1.4 3-2.1 4.5l-2.5-4.5h-3.3l4 6.8-2.3 3.9h2.9l6.1-10.5zM8.3 4.5L5.3 11.6l-.3-1.6c-.6-1.9-2.4-4-4.4-5l2.7 10.7h3.2l4.8-10.7H8.3zM2.6 4.5H0L0 4.7c3.8.9 6.3 3.2 7.3 5.9L5.5 4.5H2.6z"
-      />
-    </svg>
-  );
-}
-
 function MastercardLogo() {
   return (
     <svg
@@ -74,7 +58,6 @@ function BrandLogoContent({
   imageError: boolean;
   onImageError: () => void;
 }) {
-  if (brand === 'visa') return <VisaLogo />;
   if (brand === 'mastercard') return <MastercardLogo />;
   if (imageError) return <BrandFallback brand={brand} />;
 

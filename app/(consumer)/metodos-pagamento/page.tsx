@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Star, Trash2 } from 'lucide-react';
@@ -140,6 +140,7 @@ export default function MetodosPagamentoPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [cardHighlight, setCardHighlight] = useState<CardHighlightField>(null);
   const [cardFlipped, setCardFlipped] = useState(false);
+  const paymentFormRef = useRef<HTMLFormElement>(null);
 
   const [expiryMonth = '', expiryYear = ''] = form.expiry.split('/');
   const numberDigits = form.number.replace(/\D/g, '');
@@ -164,6 +165,52 @@ export default function MetodosPagamentoPage() {
   const resetForm = () => {
     setForm(emptyForm);
     setFormError(null);
+    setCardHighlight(null);
+    setCardFlipped(false);
+  };
+
+  const syncCardPreviewWithField = (fieldId: string) => {
+    switch (fieldId) {
+      case 'card-number':
+        setCardFlipped(false);
+        setCardHighlight('number');
+        break;
+      case 'holder-name':
+        setCardFlipped(false);
+        setCardHighlight('holder');
+        break;
+      case 'expiry':
+        setCardFlipped(false);
+        setCardHighlight('expire');
+        break;
+      case 'cvv':
+        setCardFlipped(true);
+        setCardHighlight('cvv');
+        break;
+      default:
+        setCardFlipped(false);
+        setCardHighlight(null);
+    }
+  };
+
+  const handlePaymentFormFocusCapture = (
+    e: React.FocusEvent<HTMLFormElement>
+  ) => {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    syncCardPreviewWithField(target.id);
+  };
+
+  const handlePaymentFormBlurCapture = (
+    e: React.FocusEvent<HTMLFormElement>
+  ) => {
+    const related = e.relatedTarget;
+    if (
+      related instanceof Node &&
+      paymentFormRef.current?.contains(related)
+    ) {
+      return;
+    }
     setCardHighlight(null);
     setCardFlipped(false);
   };
@@ -309,14 +356,20 @@ export default function MetodosPagamentoPage() {
           if (!open) resetForm();
         }}
       >
-        <DialogContent className="rounded-2xl sm:max-w-lg">
+        <DialogContent
+          className="rounded-2xl sm:max-w-lg"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            document.getElementById('card-number')?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Adicionar cartão</DialogTitle>
             <DialogDescription>
               Os dados são simulados neste protótipo.
             </DialogDescription>
           </DialogHeader>
-          <div className="payment-card-shell">
+          <div className="payment-card-shell" tabIndex={-1} aria-hidden>
           <InteractiveCreditCard
             numberDigits={numberDigits}
             holderName={form.holderName}
@@ -328,19 +381,21 @@ export default function MetodosPagamentoPage() {
           />
           </div>
 
-          <div className="space-y-4">
+          <form
+            ref={paymentFormRef}
+            className="space-y-4"
+            onFocusCapture={handlePaymentFormFocusCapture}
+            onBlurCapture={handlePaymentFormBlurCapture}
+            onSubmit={(e) => e.preventDefault()}
+          >
             <div className="space-y-2">
               <Label htmlFor="card-number">Número do cartão</Label>
               <Input
                 id="card-number"
                 inputMode="numeric"
+                autoComplete="cc-number"
                 placeholder="0000 0000 0000 0000"
                 value={form.number}
-                onFocus={() => {
-                  setCardFlipped(false);
-                  setCardHighlight('number');
-                }}
-                onBlur={() => setCardHighlight(null)}
                 onChange={(e) => {
                   const brand = detectCardNetwork(
                     e.target.value.replace(/\D/g, '')
@@ -357,13 +412,9 @@ export default function MetodosPagamentoPage() {
               <Label htmlFor="holder-name">Nome do titular</Label>
               <Input
                 id="holder-name"
+                autoComplete="cc-name"
                 placeholder="Como está no cartão"
                 value={form.holderName}
-                onFocus={() => {
-                  setCardFlipped(false);
-                  setCardHighlight('holder');
-                }}
-                onBlur={() => setCardHighlight(null)}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, holderName: e.target.value }))
                 }
@@ -375,6 +426,7 @@ export default function MetodosPagamentoPage() {
               <Input
                 id="holder-cpf"
                 inputMode="numeric"
+                autoComplete="off"
                 placeholder="000.000.000-00"
                 value={form.holderCpf}
                 onChange={(e) =>
@@ -389,13 +441,9 @@ export default function MetodosPagamentoPage() {
                 <Input
                   id="expiry"
                   inputMode="numeric"
+                  autoComplete="cc-exp"
                   placeholder="MM/AA"
                   value={form.expiry}
-                  onFocus={() => {
-                    setCardFlipped(false);
-                    setCardHighlight('expire');
-                  }}
-                  onBlur={() => setCardHighlight(null)}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, expiry: formatExpiry(e.target.value) }))
                   }
@@ -407,17 +455,10 @@ export default function MetodosPagamentoPage() {
                 <Input
                   id="cvv"
                   inputMode="numeric"
+                  autoComplete="cc-csc"
                   placeholder="123"
                   maxLength={4}
                   value={form.cvv}
-                  onFocus={() => {
-                    setCardFlipped(true);
-                    setCardHighlight('cvv');
-                  }}
-                  onBlur={() => {
-                    setCardFlipped(false);
-                    setCardHighlight(null);
-                  }}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
@@ -431,7 +472,7 @@ export default function MetodosPagamentoPage() {
             {formError && (
               <p className="text-sm text-destructive">{formError}</p>
             )}
-          </div>
+          </form>
           <DialogFooter>
             <Button
               type="button"
