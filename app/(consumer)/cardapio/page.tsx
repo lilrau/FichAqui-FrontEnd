@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { MapPin, Clock, User, ShoppingCart, Search, X } from 'lucide-react';
+import { MapPin, Clock, Search, X } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { menuProducts, categories, currentEvent } from '@/lib/mock-data';
 import { productMatchesSearch } from '@/lib/menu-utils';
@@ -51,26 +51,12 @@ function CardapioContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowSearch(!showSearch)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground"
-              >
-                {showSearch ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
-              </button>
-              <button
-                onClick={() => router.push('/meus-pedidos')}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground relative"
-              >
-                <ShoppingCart className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => router.push('/')}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground"
-              >
-                <User className="h-5 w-5" />
-              </button>
-            </div>
+            <button
+              onClick={() => setShowSearch(!showSearch)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground"
+            >
+              {showSearch ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+            </button>
           </div>
 
           {/* Live Badge */}

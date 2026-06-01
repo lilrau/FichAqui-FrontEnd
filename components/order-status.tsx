@@ -20,45 +20,21 @@ export function OrderStatus({ order }: OrderStatusProps) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl bg-card p-6 shadow-md border border-border"
     >
-      {/* Status Header */}
       <div className="flex items-center gap-4">
-        <motion.div
-          animate={order.status === 'preparing' ? { rotate: [0, 10, -10, 0] } : {}}
-          transition={{ repeat: Infinity, duration: 1.5 }}
+        <div
           className={cn(
-            "flex h-14 w-14 items-center justify-center rounded-2xl",
+            'flex h-14 w-14 items-center justify-center rounded-2xl',
             status.bgColor
           )}
         >
-          <Icon className={cn("h-7 w-7", status.color)} />
-        </motion.div>
+          <Icon className={cn('h-7 w-7', status.color)} />
+        </div>
         <div>
-          <h3 className={cn("text-xl font-bold", status.color)}>{status.label}</h3>
+          <h3 className={cn('text-xl font-bold', status.color)}>{status.label}</h3>
           <p className="text-sm text-muted-foreground">{status.description}</p>
         </div>
       </div>
 
-      {/* Progress */}
-      <div className="mt-6 flex items-center gap-2">
-        {['pending', 'preparing', 'ready'].map((step, index) => {
-          const isActive = ['pending', 'preparing', 'ready', 'delivered'].indexOf(order.status) >= index;
-          return (
-            <div key={step} className="flex-1">
-              <motion.div
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: isActive ? 1 : 0 }}
-                transition={{ duration: 0.5, delay: index * 0.2 }}
-                className={cn(
-                  "h-2 rounded-full origin-left",
-                  isActive ? "bg-primary" : "bg-border"
-                )}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Order Number */}
       <div className="mt-6 rounded-xl bg-secondary p-4 text-center">
         <p className="text-sm text-muted-foreground">Número do pedido</p>
         <p className="text-3xl font-bold text-foreground">#{order.number}</p>
@@ -72,6 +48,8 @@ interface OrderQRCodeProps {
 }
 
 export function OrderQRCode({ order }: OrderQRCodeProps) {
+  if (order.status === 'delivered') return null;
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}

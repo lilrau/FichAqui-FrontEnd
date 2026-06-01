@@ -3,56 +3,44 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import {
-  ChevronLeft,
-  Clock,
-  ChefHat,
-  Package,
-  Check,
-  Bell,
-  Filter,
-} from 'lucide-react';
+import { ChevronLeft, Bell } from 'lucide-react';
 import { Order } from '@/lib/mock-data';
+import { statusConfig } from '@/lib/order-status-config';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// Generate mock orders
 const generateMockOrders = (): Order[] => [
   {
     id: 'adm-1',
     number: '1247',
-    items: [
-    ],
+    items: [],
     total: 34,
-    status: 'pending',
+    status: 'available',
     createdAt: new Date(Date.now() - 1000 * 60 * 1),
     qrCode: 'QR-1',
   },
   {
     id: 'adm-2',
     number: '1246',
-    items: [
-    ],
+    items: [],
     total: 48,
-    status: 'preparing',
+    status: 'available',
     createdAt: new Date(Date.now() - 1000 * 60 * 3),
     qrCode: 'QR-2',
   },
   {
     id: 'adm-3',
     number: '1245',
-    items: [
-    ],
+    items: [],
     total: 20,
-    status: 'ready',
+    status: 'available',
     createdAt: new Date(Date.now() - 1000 * 60 * 5),
     qrCode: 'QR-3',
   },
   {
     id: 'adm-4',
     number: '1244',
-    items: [
-    ],
+    items: [],
     total: 12,
     status: 'delivered',
     createdAt: new Date(Date.now() - 1000 * 60 * 8),
@@ -61,23 +49,15 @@ const generateMockOrders = (): Order[] => [
   {
     id: 'adm-5',
     number: '1243',
-    items: [
-    ],
+    items: [],
     total: 25,
-    status: 'pending',
+    status: 'available',
     createdAt: new Date(Date.now() - 1000 * 60 * 2),
     qrCode: 'QR-5',
   },
 ];
 
-const statusConfig = {
-  pending: { label: 'Aguardando', icon: Clock, color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
-  preparing: { label: 'Preparando', icon: ChefHat, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
-  ready: { label: 'Disponível', icon: Package, color: 'text-green-500', bgColor: 'bg-green-500/10' },
-  delivered: { label: 'Entregue', icon: Check, color: 'text-muted-foreground', bgColor: 'bg-muted' },
-};
-
-type StatusFilter = 'all' | 'pending' | 'preparing' | 'ready' | 'delivered';
+type StatusFilter = 'all' | 'available' | 'delivered';
 
 export default function AdminPedidosPage() {
   const router = useRouter();
@@ -85,7 +65,6 @@ export default function AdminPedidosPage() {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [newOrderAlert, setNewOrderAlert] = useState(false);
 
-  // Simular novo pedido chegando
   useEffect(() => {
     const interval = setInterval(() => {
       setNewOrderAlert(true);
@@ -105,9 +84,8 @@ export default function AdminPedidosPage() {
   };
 
   const getNextStatus = (current: Order['status']): Order['status'] | null => {
-    const flow: Order['status'][] = ['pending', 'preparing', 'ready', 'delivered'];
-    const currentIndex = flow.indexOf(current);
-    return currentIndex < flow.length - 1 ? flow[currentIndex + 1] : null;
+    if (current === 'available') return 'delivered';
+    return null;
   };
 
   const formatTime = (date: Date) => {
@@ -117,14 +95,20 @@ export default function AdminPedidosPage() {
 
   const filterButtons: { label: string; value: StatusFilter; count: number }[] = [
     { label: 'Todos', value: 'all', count: orders.length },
-    { label: 'Aguardando', value: 'pending', count: orders.filter((o) => o.status === 'pending').length },
-    { label: 'Preparando', value: 'preparing', count: orders.filter((o) => o.status === 'preparing').length },
-    { label: 'Disponível', value: 'ready', count: orders.filter((o) => o.status === 'ready').length },
+    {
+      label: 'Disponível',
+      value: 'available',
+      count: orders.filter((o) => o.status === 'available').length,
+    },
+    {
+      label: 'Entregue',
+      value: 'delivered',
+      count: orders.filter((o) => o.status === 'delivered').length,
+    },
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 py-4">
           <button
@@ -136,33 +120,37 @@ export default function AdminPedidosPage() {
           </button>
           <h1 className="font-bold text-foreground">Pedidos</h1>
           <div className="relative">
-            <Bell className={cn("h-5 w-5", newOrderAlert ? "text-primary animate-bounce" : "text-muted-foreground")} />
+            <Bell
+              className={cn(
+                'h-5 w-5',
+                newOrderAlert ? 'text-primary animate-bounce' : 'text-muted-foreground'
+              )}
+            />
             {newOrderAlert && (
               <span className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full" />
             )}
           </div>
         </div>
 
-        {/* Filters */}
         <div className="px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
           {filterButtons.map((btn) => (
             <button
               key={btn.value}
               onClick={() => setFilter(btn.value)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
+                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all',
                 filter === btn.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground"
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground'
               )}
             >
               {btn.label}
-              <span className={cn(
-                "px-1.5 py-0.5 rounded-md text-xs",
-                filter === btn.value
-                  ? "bg-primary-foreground/20"
-                  : "bg-foreground/10"
-              )}>
+              <span
+                className={cn(
+                  'px-1.5 py-0.5 rounded-md text-xs',
+                  filter === btn.value ? 'bg-primary-foreground/20' : 'bg-foreground/10'
+                )}
+              >
                 {btn.count}
               </span>
             </button>
@@ -187,23 +175,34 @@ export default function AdminPedidosPage() {
                 layout
                 className="rounded-2xl bg-card p-4 shadow-sm border border-border"
               >
-                {/* Header */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl", status.bgColor)}>
-                      <Icon className={cn("h-6 w-6", status.color)} />
+                    <div
+                      className={cn(
+                        'flex h-12 w-12 items-center justify-center rounded-xl',
+                        status.bgColor
+                      )}
+                    >
+                      <Icon className={cn('h-6 w-6', status.color)} />
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-foreground">#{order.number}</p>
-                      <p className="text-xs text-muted-foreground">há {formatTime(order.createdAt)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        há {formatTime(order.createdAt)}
+                      </p>
                     </div>
                   </div>
-                  <span className={cn("px-3 py-1.5 rounded-full text-sm font-medium", status.bgColor, status.color)}>
+                  <span
+                    className={cn(
+                      'px-3 py-1.5 rounded-full text-sm font-medium',
+                      status.bgColor,
+                      status.color
+                    )}
+                  >
                     {status.label}
                   </span>
                 </div>
 
-                {/* Items */}
                 <div className="mt-4 space-y-1">
                   {order.items.map((cartItem) => (
                     <div key={cartItem.item.id} className="flex items-center gap-2 text-sm">
@@ -214,7 +213,6 @@ export default function AdminPedidosPage() {
                   ))}
                 </div>
 
-                {/* Footer */}
                 <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                   <span className="font-bold text-foreground">R$ {order.total.toFixed(2)}</span>
                   {nextStatus && (
@@ -223,9 +221,7 @@ export default function AdminPedidosPage() {
                       onClick={() => updateStatus(order.id, nextStatus)}
                       className="rounded-xl"
                     >
-                      {nextStatus === 'preparing' && 'Iniciar Preparo'}
-                      {nextStatus === 'ready' && 'Marcar Disponível'}
-                      {nextStatus === 'delivered' && 'Confirmar Entrega'}
+                      Confirmar entrega
                     </Button>
                   )}
                 </div>

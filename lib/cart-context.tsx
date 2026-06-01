@@ -70,7 +70,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       number: generateOrderNumber(),
       items: [...items],
       total,
-      status: 'pending',
+      status: 'available',
       createdAt: new Date(),
       qrCode: generateQRCode(),
     };
@@ -78,29 +78,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setOrders((prev) => [newOrder, ...prev]);
     setCurrentOrder(newOrder);
     clearCart();
-
-    // Simular mudança de status
-    setTimeout(() => {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === newOrder.id ? { ...o, status: 'preparing' } : o
-        )
-      );
-      setCurrentOrder((prev) =>
-        prev?.id === newOrder.id ? { ...prev, status: 'preparing' } : prev
-      );
-    }, 3000);
-
-    setTimeout(() => {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === newOrder.id ? { ...o, status: 'ready' } : o
-        )
-      );
-      setCurrentOrder((prev) =>
-        prev?.id === newOrder.id ? { ...prev, status: 'ready' } : prev
-      );
-    }, 8000);
 
     return newOrder;
   }, [items, total, clearCart]);

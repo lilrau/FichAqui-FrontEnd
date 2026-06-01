@@ -174,7 +174,7 @@ export function FloatingCartButton({ onClick }: FloatingCartButtonProps) {
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       className={cn(
-        "fixed bottom-6 left-4 right-4 z-40",
+        "fixed bottom-24 left-4 right-4 z-50",
         "flex items-center justify-between",
         "h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30",
         "text-primary-foreground"

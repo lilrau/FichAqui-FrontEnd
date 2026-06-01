@@ -50,7 +50,7 @@ export interface Stall {
   stock: number;
 }
 
-export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered';
+export type OrderStatus = 'available' | 'delivered';
 
 export interface Order {
   id: string;
@@ -83,6 +83,40 @@ export function getFichasFromOrder(order: Order): Ficha[] {
     status: order.status,
   }));
 }
+
+export function isFichaValid(ficha: Ficha): boolean {
+  return ficha.status !== 'delivered';
+}
+
+export const mockAvailableFichas: Ficha[] = [
+  {
+    id: 'ficha-1',
+    orderId: 'order-1',
+    itemName: 'Pastel — Carne',
+    itemImage: '🥟',
+    stallId: 'stall-1',
+    qrCode: 'QR-12345-pastel-carne',
+    status: 'available',
+  },
+  {
+    id: 'ficha-2',
+    orderId: 'order-1',
+    itemName: 'Milho Verde',
+    itemImage: '🌽',
+    stallId: 'stall-2',
+    qrCode: 'QR-12345-milho-verde-unidade',
+    status: 'available',
+  },
+  {
+    id: 'ficha-3',
+    orderId: 'order-4',
+    itemName: 'Cachorro Quente',
+    itemImage: '🌭',
+    stallId: 'stall-2',
+    qrCode: 'QR-99001-cachorro-quente-unidade',
+    status: 'available',
+  },
+];
 
 export interface Event {
   id: string;
