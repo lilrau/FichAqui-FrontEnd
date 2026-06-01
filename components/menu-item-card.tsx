@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useNavigation } from '@/components/navigation-provider';
 import { Minus, Plus, Flame, ChevronRight } from 'lucide-react';
 import { MenuItem, MenuProduct, MenuVariant } from '@/lib/mock-data';
 import { useCart } from '@/lib/cart-context';
@@ -36,7 +36,7 @@ export function MenuItemCard(props: MenuItemCardProps) {
 }
 
 function MenuProductCard({ product }: { product: MenuProduct }) {
-  const router = useRouter();
+  const { startNav } = useNavigation();
   const { items, addItem, updateQuantity } = useCart();
   const isMultiVariant = hasMultipleVariants(product);
   const quantity = getProductCartQuantity(product, items);
@@ -46,7 +46,7 @@ function MenuProductCard({ product }: { product: MenuProduct }) {
 
   const handleOpenProduct = () => {
     if (isMultiVariant) {
-      router.push(`/cardapio/${product.id}`);
+      startNav(`/cardapio/${product.id}`);
     }
   };
 

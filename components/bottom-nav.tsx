@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { Wallet, UtensilsCrossed, Clock, User } from 'lucide-react';
+import { useNavigation } from '@/components/navigation-provider';
 import { cn } from '@/lib/utils';
 
 const tabs = [
@@ -19,6 +21,7 @@ function isActive(pathname: string, href: string, matchPrefix?: boolean) {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { startNav, isPending } = useNavigation();
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-md pb-8">
@@ -30,13 +33,30 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
+              prefetch
+              onClick={(e) => {
+                if (active) {
+                  e.preventDefault();
+                  return;
+                }
+                e.preventDefault();
+                startNav(href);
+              }}
               className={cn(
-                'flex flex-1 flex-col items-center gap-1 py-2 transition-colors',
-                active ? 'text-primary' : 'text-muted-foreground'
+                'relative flex flex-1 flex-col items-center gap-1 py-2 transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground',
+                isPending && !active && 'opacity-70'
               )}
             >
-              <Icon className={cn('h-5 w-5', active && 'stroke-[2.5]')} />
-              <span className={cn('text-xs', active ? 'font-semibold' : 'font-medium')}>
+              {active && (
+                <motion.div
+                  layoutId="bottom-nav-active"
+                  className="absolute inset-x-2 inset-y-1 rounded-xl bg-primary/10"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <Icon className={cn('relative z-10 h-5 w-5', active && 'stroke-[2.5]')} />
+              <span className={cn('relative z-10 text-xs', active ? 'font-semibold' : 'font-medium')}>
                 {label}
               </span>
             </Link>
