@@ -4,16 +4,25 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { getFichasFromOrder, Order } from '@/lib/mock-data';
+import { getFichasFromOrder, menuItems, Order } from '@/lib/mock-data';
 import { statusConfig } from '@/lib/order-status-config';
 import { FichaCard } from '@/components/ficha-card';
+
+function menuItemById(id: string) {
+  const item = menuItems.find((entry) => entry.id === id);
+  if (!item) throw new Error(`Menu item not found: ${id}`);
+  return item;
+}
 
 const mockOrders: Order[] = [
   {
     id: 'order-1',
     number: '1234',
-    items: [],
-    total: 22,
+    items: [
+      { item: menuItemById('pastel-carne'), quantity: 1 },
+      { item: menuItemById('milho-verde-unidade'), quantity: 1 },
+    ],
+    total: 14,
     status: 'available',
     createdAt: new Date(Date.now() - 1000 * 60 * 5),
     qrCode: 'QR-12345',
@@ -21,8 +30,8 @@ const mockOrders: Order[] = [
   {
     id: 'order-2',
     number: '1189',
-    items: [],
-    total: 12,
+    items: [{ item: menuItemById('cachorro-quente-unidade'), quantity: 1 }],
+    total: 10,
     status: 'delivered',
     createdAt: new Date(Date.now() - 1000 * 60 * 30),
     qrCode: 'QR-67890',
@@ -30,8 +39,11 @@ const mockOrders: Order[] = [
   {
     id: 'order-3',
     number: '1156',
-    items: [],
-    total: 34,
+    items: [
+      { item: menuItemById('espetinho-carne-unidade'), quantity: 2 },
+      { item: menuItemById('quentao-copo'), quantity: 1 },
+    ],
+    total: 30,
     status: 'delivered',
     createdAt: new Date(Date.now() - 1000 * 60 * 60),
     qrCode: 'QR-11111',
@@ -79,7 +91,8 @@ export default function HistoricoPage() {
               const status = statusConfig[order.status];
               const Icon = status.icon;
               const fichas = getFichasFromOrder(order);
-              const isExpanded = expandedOrderId === order.id;
+              const isDelivered = order.status === 'delivered';
+              const isExpanded = !isDelivered && expandedOrderId === order.id;
 
               return (
                 <motion.div
@@ -125,20 +138,26 @@ export default function HistoricoPage() {
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => toggleOrder(order.id)}
-                    className="mt-4 w-full flex items-center justify-between rounded-xl bg-secondary px-4 py-3 text-sm font-semibold text-foreground"
-                  >
-                    <span>
-                      {isExpanded ? 'Ocultar fichas' : `Ver fichas (${fichas.length})`}
-                    </span>
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
+                  {isDelivered ? (
+                    <p className="mt-4 w-full rounded-xl bg-secondary px-4 py-3 text-center text-sm font-semibold text-muted-foreground">
+                      Todas as fichas já resgatadas
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleOrder(order.id)}
+                      className="mt-4 w-full flex items-center justify-between rounded-xl bg-secondary px-4 py-3 text-sm font-semibold text-foreground"
+                    >
+                      <span>
+                        {isExpanded ? 'Ocultar fichas' : `Ver fichas (${fichas.length})`}
+                      </span>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </button>
+                  )}
 
                   {isExpanded && (
                     <div className="mt-4 space-y-3">
