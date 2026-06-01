@@ -53,8 +53,22 @@ function formatCardNumber(value: string, brand: CardBrand | null) {
 
 function formatExpiry(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  if (digits.length === 0) return '';
+
+  if (digits.length === 1) {
+    return digits[0] > '1' ? `0${digits[0]}` : digits;
+  }
+
+  if (digits[0] === '0' && digits[1] === '0') return '0';
+
+  let month = digits.slice(0, 2);
+  const monthNum = parseInt(month, 10);
+  if (monthNum > 12) month = '12';
+  if (monthNum === 0) return '0';
+
+  const year = digits.slice(2);
+  if (year.length === 0) return month;
+  return `${month}/${year}`;
 }
 
 function formatCpf(value: string) {
@@ -170,6 +184,11 @@ export default function MetodosPagamentoPage() {
     }
     if (month.length !== 2 || year.length !== 2) {
       setFormError('Informe a validade no formato MM/AA.');
+      return;
+    }
+    const monthNum = parseInt(month, 10);
+    if (monthNum < 1 || monthNum > 12) {
+      setFormError('Informe um mês válido (01 a 12).');
       return;
     }
     if (form.cvv.replace(/\D/g, '').length < 3) {
@@ -346,33 +365,6 @@ export default function MetodosPagamentoPage() {
                 className="h-11 rounded-xl font-mono"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="holder-name">Nome do titular</Label>
-              <Input
-                id="holder-name"
-                autoComplete="cc-name"
-                placeholder="Como está no cartão"
-                value={form.holderName}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, holderName: e.target.value }))
-                }
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="holder-cpf">CPF do titular</Label>
-              <Input
-                id="holder-cpf"
-                inputMode="numeric"
-                autoComplete="off"
-                placeholder="000.000.000-00"
-                value={form.holderCpf}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, holderCpf: formatCpf(e.target.value) }))
-                }
-                className="h-11 rounded-xl"
-              />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="expiry">Validade</Label>
@@ -406,6 +398,33 @@ export default function MetodosPagamentoPage() {
                   className="h-11 rounded-xl"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="holder-name">Nome do titular</Label>
+              <Input
+                id="holder-name"
+                autoComplete="cc-name"
+                placeholder="Como está no cartão"
+                value={form.holderName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, holderName: e.target.value }))
+                }
+                className="h-11 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="holder-cpf">CPF do titular</Label>
+              <Input
+                id="holder-cpf"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="000.000.000-00"
+                value={form.holderCpf}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, holderCpf: formatCpf(e.target.value) }))
+                }
+                className="h-11 rounded-xl"
+              />
             </div>
             {formError && (
               <p className="text-sm text-destructive">{formError}</p>
