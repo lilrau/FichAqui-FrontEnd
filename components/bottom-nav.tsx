@@ -24,7 +24,7 @@ export function BottomNav() {
   const { startNav, isPending } = useNavigation();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-md pb-8">
+    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur-md pb-4">
       <div className="flex items-center justify-around px-2 pt-2">
         {tabs.map(({ href, label, icon: Icon, matchPrefix }) => {
           const active = isActive(pathname, href, matchPrefix);
