@@ -118,6 +118,8 @@ export const mockAvailableFichas: Ficha[] = [
   },
 ];
 
+export const mockWalletBalance = 46;
+
 export interface Event {
   id: string;
   name: string;

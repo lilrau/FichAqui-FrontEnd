@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/lib/cart-context';
@@ -10,6 +11,7 @@ import {
   getFichasFromOrder,
   isFichaValid,
   mockAvailableFichas,
+  mockWalletBalance,
 } from '@/lib/mock-data';
 import { FichaCard } from '@/components/ficha-card';
 import { cn } from '@/lib/utils';
@@ -139,11 +141,15 @@ function FichasList({ fichas }: { fichas: Ficha[] }) {
   );
 }
 
-export default function CarteiraPage() {
-  const balance = 46;
+function CarteiraContent() {
+  const searchParams = useSearchParams();
+  const initialTab: TabId =
+    searchParams.get('tab') === 'fichas' ? 'fichas' : 'movimentacoes';
+  const initialTabIndex = tabs.findIndex((t) => t.id === initialTab);
+
   const { orders } = useCart();
-  const [activeTab, setActiveTab] = useState<TabId>('movimentacoes');
-  const [[tabIndex, direction], setTabPosition] = useState([0, 0]);
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  const [[tabIndex, direction], setTabPosition] = useState([initialTabIndex, 0]);
 
   const availableFichas = useMemo(() => {
     const fromOrders = orders.flatMap(getFichasFromOrder).filter(isFichaValid);
@@ -177,7 +183,7 @@ export default function CarteiraPage() {
             <span className="text-sm font-medium">Saldo disponível</span>
           </div>
           <p className="mt-2 text-4xl font-bold">
-            R$ {balance.toFixed(2).replace('.', ',')}
+            R$ {mockWalletBalance.toFixed(2).replace('.', ',')}
           </p>
           <Button
             variant="secondary"
@@ -234,5 +240,13 @@ export default function CarteiraPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CarteiraPage() {
+  return (
+    <Suspense fallback={null}>
+      <CarteiraContent />
+    </Suspense>
   );
 }

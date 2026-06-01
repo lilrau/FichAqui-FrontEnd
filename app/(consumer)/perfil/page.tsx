@@ -2,7 +2,16 @@
 
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Phone, LogOut, Shield, ChevronRight } from 'lucide-react';
+import {
+  User,
+  Mail,
+  Phone,
+  LogOut,
+  Shield,
+  ChevronRight,
+  KeyRound,
+  CreditCard,
+} from 'lucide-react';
 import { currentEvent } from '@/lib/mock-data';
 
 const mockUser = {
@@ -61,6 +70,34 @@ export default function PerfilPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
+          className="rounded-2xl bg-card border border-border divide-y divide-border overflow-hidden"
+        >
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-4 py-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <KeyRound className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Trocar minha senha</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-4 py-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Métodos de pagamento</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
           className="rounded-2xl bg-card border border-border overflow-hidden"
         >
           <button
@@ -79,7 +116,7 @@ export default function PerfilPage() {
         <motion.button
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
+          transition={{ delay: 0.2 }}
           type="button"
           onClick={() => router.push('/')}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-4 text-sm font-semibold text-destructive"

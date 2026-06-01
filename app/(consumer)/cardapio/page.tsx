@@ -1,11 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { MapPin, Clock, Search, X } from 'lucide-react';
+import { MapPin, Search, Wallet } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { menuProducts, categories, currentEvent } from '@/lib/mock-data';
+import {
+  menuProducts,
+  categories,
+  currentEvent,
+  mockWalletBalance,
+  getFichasFromOrder,
+  isFichaValid,
+  mockAvailableFichas,
+} from '@/lib/mock-data';
 import { productMatchesSearch } from '@/lib/menu-utils';
 import { MenuItemCard } from '@/components/menu-item-card';
 import { CategoryPills } from '@/components/category-pills';
@@ -14,11 +22,16 @@ import { Input } from '@/components/ui/input';
 
 function CardapioContent() {
   const router = useRouter();
-  const { itemCount } = useCart();
+  const { itemCount, orders } = useCart();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+
+  const availableFichasCount = useMemo(() => {
+    const fromOrders = orders.flatMap(getFichasFromOrder).filter(isFichaValid);
+    const fichas = fromOrders.length > 0 ? fromOrders : mockAvailableFichas;
+    return fichas.length;
+  }, [orders]);
 
   const filteredProducts = menuProducts.filter((product) => {
     const matchesCategory = !activeCategory || product.category === activeCategory;
@@ -31,72 +44,57 @@ function CardapioContent() {
     router.push('/pedido');
   };
 
+  const formattedBalance = mockWalletBalance.toFixed(2).replace('.', ',');
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="px-4 py-3">
           {/* Top Row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="h-10 w-10 shrink-0 rounded-xl bg-primary flex items-center justify-center text-xl">
                 🎪
               </div>
-              <div>
-                <h1 className="font-bold text-foreground">{currentEvent.name}</h1>
+              <div className="min-w-0">
+                <h1 className="font-bold text-foreground truncate">{currentEvent.name}</h1>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <MapPin className="h-3 w-3" />
-                  <span>{currentEvent.location}</span>
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{currentEvent.location}</span>
                 </div>
               </div>
             </div>
 
             <button
-              onClick={() => setShowSearch(!showSearch)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground"
+              type="button"
+              onClick={() => router.push('/carteira?tab=fichas')}
+              className="flex shrink-0 items-center gap-2 rounded-xl bg-secondary px-3 py-2 transition-colors hover:bg-secondary/80"
             >
-              {showSearch ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+              <Wallet className="h-5 w-5 text-primary" />
+              <div className="text-right">
+                <p className="text-sm font-semibold text-foreground">
+                  R$ {formattedBalance}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {availableFichasCount}{' '}
+                  {availableFichasCount === 1 ? 'ficha' : 'fichas'}
+                </p>
+              </div>
             </button>
           </div>
 
-          {/* Live Badge */}
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 text-green-600 text-sm">
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="h-2 w-2 rounded-full bg-green-500"
-              />
-              <span className="font-medium">Ingressos à venda</span>
-            </div>
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>{currentEvent.startTime} - {currentEvent.endTime}</span>
-            </div>
-          </div>
-
           {/* Search Bar */}
-          <AnimatePresence>
-            {showSearch && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="pt-3">
-                  <Input
-                    type="text"
-                    placeholder="Buscar itens..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-12 rounded-xl"
-                    autoFocus
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="relative mt-3">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Buscar itens..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-12 rounded-xl pl-10"
+            />
+          </div>
         </div>
 
         {/* Categories */}
