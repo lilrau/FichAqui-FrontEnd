@@ -120,7 +120,7 @@ export const mockAvailableFichas: Ficha[] = [
 
 export const mockWalletBalance = 46;
 
-export type CardBrand = 'visa' | 'mastercard' | 'elo';
+export type { CardBrand, CardNetwork } from './card-brand';
 
 export interface SavedPaymentCard {
   id: string;

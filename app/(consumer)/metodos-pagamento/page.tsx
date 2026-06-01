@@ -5,10 +5,12 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Plus, Star, Trash2 } from 'lucide-react';
 import {
+  CARD_BRAND_LABELS,
   CardBrand,
-  SavedPaymentCard,
-  mockSavedPaymentCards,
-} from '@/lib/mock-data';
+  detectCardNetwork,
+  getCardNumberLength,
+} from '@/lib/card-brand';
+import { SavedPaymentCard, mockSavedPaymentCards } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,15 +34,29 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import {
+  CardHighlightField,
+  InteractiveCreditCard,
+} from '@/components/interactive-credit-card';
 
-const brandConfig: Record<
-  CardBrand,
-  { label: string; gradient: string }
-> = {
-  visa: { label: 'Visa', gradient: 'from-blue-600 to-blue-900' },
-  mastercard: { label: 'Mastercard', gradient: 'from-red-600 to-orange-700' },
-  elo: { label: 'Elo', gradient: 'from-amber-500 to-emerald-800' },
+const brandGradients: Partial<Record<CardBrand, string>> = {
+  visa: 'from-blue-600 to-blue-900',
+  mastercard: 'from-red-600 to-orange-700',
+  amex: 'from-sky-600 to-blue-900',
+  discover: 'from-orange-500 to-amber-700',
+  diners: 'from-slate-600 to-slate-900',
+  jcb: 'from-emerald-600 to-teal-900',
+  elo: 'from-amber-500 to-emerald-800',
+  hipercard: 'from-red-700 to-rose-900',
+  banese: 'from-green-600 to-emerald-900',
+  cabal: 'from-indigo-600 to-violet-900',
+  sorocred: 'from-cyan-600 to-blue-800',
+  valecard: 'from-lime-600 to-green-900',
 };
+
+function getBrandGradient(brand: CardBrand): string {
+  return brandGradients[brand] ?? 'from-zinc-600 to-zinc-900';
+}
 
 const emptyForm = {
   number: '',
@@ -50,15 +66,8 @@ const emptyForm = {
   cvv: '',
 };
 
-function detectBrand(number: string): CardBrand {
-  const digits = number.replace(/\D/g, '');
-  if (digits.startsWith('4')) return 'visa';
-  if (digits.startsWith('5')) return 'mastercard';
-  return 'elo';
-}
-
-function formatCardNumber(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 16);
+function formatCardNumber(value: string, brand: CardBrand | null) {
+  const digits = value.replace(/\D/g, '').slice(0, getCardNumberLength(brand));
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
 }
 
@@ -79,7 +88,8 @@ function formatCpf(value: string) {
 }
 
 function SavedCardVisual({ card }: { card: SavedPaymentCard }) {
-  const { label, gradient } = brandConfig[card.brand];
+  const label = CARD_BRAND_LABELS[card.brand];
+  const gradient = getBrandGradient(card.brand);
 
   return (
     <div
@@ -128,6 +138,11 @@ export default function MetodosPagamentoPage() {
   const [cardToRemove, setCardToRemove] = useState<SavedPaymentCard | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const [cardHighlight, setCardHighlight] = useState<CardHighlightField>(null);
+  const [cardFlipped, setCardFlipped] = useState(false);
+
+  const [expiryMonth = '', expiryYear = ''] = form.expiry.split('/');
+  const numberDigits = form.number.replace(/\D/g, '');
 
   const setDefault = (id: string) => {
     setCards((prev) =>
@@ -149,13 +164,16 @@ export default function MetodosPagamentoPage() {
   const resetForm = () => {
     setForm(emptyForm);
     setFormError(null);
+    setCardHighlight(null);
+    setCardFlipped(false);
   };
 
   const handleAddCard = () => {
     const digits = form.number.replace(/\D/g, '');
+    const brand = detectCardNetwork(digits) ?? 'elo';
     const [month = '', year = ''] = form.expiry.split('/');
 
-    if (digits.length < 16) {
+    if (digits.length < getCardNumberLength(brand)) {
       setFormError('Informe um número de cartão válido.');
       return;
     }
@@ -178,7 +196,7 @@ export default function MetodosPagamentoPage() {
 
     const newCard: SavedPaymentCard = {
       id: `card-${Date.now()}`,
-      brand: detectBrand(digits),
+      brand,
       lastFour: digits.slice(-4),
       holderName: form.holderName.trim(),
       holderCpf: formatCpf(form.holderCpf),
@@ -291,13 +309,25 @@ export default function MetodosPagamentoPage() {
           if (!open) resetForm();
         }}
       >
-        <DialogContent className="rounded-2xl sm:max-w-md">
+        <DialogContent className="rounded-2xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Adicionar cartão</DialogTitle>
             <DialogDescription>
               Os dados são simulados neste protótipo.
             </DialogDescription>
           </DialogHeader>
+          <div className="payment-card-shell">
+          <InteractiveCreditCard
+            numberDigits={numberDigits}
+            holderName={form.holderName}
+            expiryMonth={expiryMonth}
+            expiryYear={expiryYear}
+            cvv={form.cvv}
+            highlight={cardHighlight}
+            flipped={cardFlipped}
+          />
+          </div>
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="card-number">Número do cartão</Label>
@@ -306,9 +336,20 @@ export default function MetodosPagamentoPage() {
                 inputMode="numeric"
                 placeholder="0000 0000 0000 0000"
                 value={form.number}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, number: formatCardNumber(e.target.value) }))
-                }
+                onFocus={() => {
+                  setCardFlipped(false);
+                  setCardHighlight('number');
+                }}
+                onBlur={() => setCardHighlight(null)}
+                onChange={(e) => {
+                  const brand = detectCardNetwork(
+                    e.target.value.replace(/\D/g, '')
+                  );
+                  setForm((f) => ({
+                    ...f,
+                    number: formatCardNumber(e.target.value, brand),
+                  }));
+                }}
                 className="h-11 rounded-xl font-mono"
               />
             </div>
@@ -318,6 +359,11 @@ export default function MetodosPagamentoPage() {
                 id="holder-name"
                 placeholder="Como está no cartão"
                 value={form.holderName}
+                onFocus={() => {
+                  setCardFlipped(false);
+                  setCardHighlight('holder');
+                }}
+                onBlur={() => setCardHighlight(null)}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, holderName: e.target.value }))
                 }
@@ -345,6 +391,11 @@ export default function MetodosPagamentoPage() {
                   inputMode="numeric"
                   placeholder="MM/AA"
                   value={form.expiry}
+                  onFocus={() => {
+                    setCardFlipped(false);
+                    setCardHighlight('expire');
+                  }}
+                  onBlur={() => setCardHighlight(null)}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, expiry: formatExpiry(e.target.value) }))
                   }
@@ -359,6 +410,14 @@ export default function MetodosPagamentoPage() {
                   placeholder="123"
                   maxLength={4}
                   value={form.cvv}
+                  onFocus={() => {
+                    setCardFlipped(true);
+                    setCardHighlight('cvv');
+                  }}
+                  onBlur={() => {
+                    setCardFlipped(false);
+                    setCardHighlight(null);
+                  }}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
