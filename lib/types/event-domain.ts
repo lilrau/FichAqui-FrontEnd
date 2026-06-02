@@ -82,6 +82,8 @@ export interface Event {
   startTime: string;
   endTime: string;
   location: string;
+  cityId: string;
+  organizerId: string;
   banner: string;
   status: 'draft' | 'published' | 'active' | 'finished';
   capacity: number;

@@ -287,9 +287,23 @@ const menuProductsEvent2: Omit<MenuProduct, 'eventId'>[] = [
   },
 ];
 
+const menuProductsEvent3: Omit<MenuProduct, 'eventId'>[] = [
+  {
+    id: 'sopa',
+    name: 'Sopa de Mandioca',
+    description: 'Sopa cremosa servida no copo',
+    category: 'comidas',
+    image: '🥣',
+    available: true,
+    stallId: 'stall-l1',
+    variants: [{ id: 'sopa-copo', label: 'Copo', price: 7.0, available: true }],
+  },
+];
+
 export const seedMenuProducts: MenuProduct[] = [
   ...menuProductsEvent1.map((p) => ({ ...p, eventId: '1' })),
   ...menuProductsEvent2.map((p) => ({ ...p, eventId: '2' })),
+  ...menuProductsEvent3.map((p) => ({ ...p, eventId: '3' })),
 ];
 
 export function createDefaultMenuProductsForEvent(

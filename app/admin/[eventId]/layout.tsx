@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { OrganizerEventsStrip } from '@/components/admin/organizer-events-strip';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
 import { useAppReady } from '@/lib/event-context';
@@ -115,6 +116,9 @@ export default function AdminEventLayout({
           </div>
         </div>
       </header>
+      <div className="px-4 pt-4">
+        <OrganizerEventsStrip currentEventId={eventId} title="Outros eventos seus" />
+      </div>
       {children}
     </div>
   );

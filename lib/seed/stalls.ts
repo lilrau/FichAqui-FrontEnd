@@ -11,6 +11,7 @@ export const seedStalls: Stall[] = [
   { id: 'stall-n1', eventId: '2', name: 'Barraca do Peru', category: 'comidas', responsible: 'Roberto Alves', color: '#dc2626', status: 'open', stock: 80 },
   { id: 'stall-n2', eventId: '2', name: 'Doces Natalinos', category: 'doces', responsible: 'Helena Dias', color: '#16a34a', status: 'open', stock: 120 },
   { id: 'stall-n3', eventId: '2', name: 'Bebidas Quentes', category: 'bebidas', responsible: 'Marcos Prado', color: '#ca8a04', status: 'open', stock: 200 },
+  { id: 'stall-l1', eventId: '3', name: 'Barraca Central', category: 'comidas', responsible: 'Ana Lima', color: '#7c3aed', status: 'open', stock: 120 },
 ];
 
 export function createDefaultStallsForEvent(eventId: string): Stall[] {

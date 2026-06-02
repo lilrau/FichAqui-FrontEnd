@@ -14,6 +14,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
+import { seedCities, cityLabel } from '@/lib/seed/cities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -191,11 +192,25 @@ export function EventoForm({ eventId }: { eventId: string }) {
             </div>
           </div>
 
-          {/* Localização */}
+          <div>
+            <label className="text-sm font-medium text-foreground">Cidade</label>
+            <select
+              value={event.cityId}
+              onChange={(e) => setEvent({ ...event, cityId: e.target.value })}
+              className="mt-2 w-full h-14 rounded-xl border border-input bg-background px-3 text-base"
+            >
+              {seedCities.map((city) => (
+                <option key={city.id} value={city.id}>
+                  {cityLabel(city)}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />
-              Localização
+              Local (endereço)
             </label>
             <Input
               value={event.location}

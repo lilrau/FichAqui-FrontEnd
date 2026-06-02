@@ -1,342 +1,259 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { MapPin, Calendar, Clock, User, Users, ChevronRight, PartyPopper } from 'lucide-react';
+import {
+  Calendar,
+  ChevronRight,
+  Clock,
+  LayoutDashboard,
+  LogIn,
+  MapPin,
+  User,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useEventStore } from '@/lib/event-store';
+import { useAuth } from '@/lib/auth-context';
+import { useCity } from '@/lib/city-context';
 import { useActiveEvent } from '@/lib/event-context';
+import { useEventStore } from '@/lib/event-store';
+import { cityLabel } from '@/lib/seed/cities';
 import { formatEventDate } from '@/lib/event-routing';
+import { cn } from '@/lib/utils';
+import type { Event } from '@/lib/types/event-domain';
 
-export default function LoginPage() {
+const statusLabels: Record<Event['status'], string> = {
+  draft: 'Rascunho',
+  published: 'Em breve',
+  active: 'Acontecendo agora',
+  finished: 'Encerrado',
+};
+
+export default function HomePage() {
   const router = useRouter();
-  const { events } = useEventStore();
+  const { user, isAuthenticated, hasRole, logout } = useAuth();
+  const {
+    cities,
+    selectedCityId,
+    selectedCity,
+    setSelectedCityId,
+    clearSelectedCity,
+    hydrated: cityHydrated,
+  } = useCity();
+  const { getEventsByCityId } = useEventStore();
   const { setActiveEventId } = useActiveEvent();
-  const [step, setStep] = useState<'welcome' | 'login' | 'admin'>('welcome');
-  const [loading, setLoading] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState('1');
-  const [adminCode, setAdminCode] = useState('FESTA2026');
+  const [loadingEventId, setLoadingEventId] = useState<string | null>(null);
 
-  const displayEvent = events.find((e) => e.id === selectedEventId) ?? events[0];
+  const cityEvents = selectedCityId
+    ? getEventsByCityId(selectedCityId, { publicOnly: true })
+    : [];
 
-  const handleContinue = () => {
-    setLoading(true);
-    setActiveEventId(selectedEventId);
-    setTimeout(() => {
-      router.push(`/cardapio?event=${selectedEventId}`);
-    }, 800);
+  const handleSelectCity = (cityId: string) => {
+    setSelectedCityId(cityId);
   };
 
-  const handleAdminLogin = () => {
-    setLoading(true);
-    const code = adminCode.trim().toUpperCase();
-    const match = events.find((e) => e.code?.toUpperCase() === code);
+  const handleOpenEvent = (eventId: string) => {
+    setLoadingEventId(eventId);
+    setActiveEventId(eventId);
     setTimeout(() => {
-      if (match) router.push(`/admin/${match.id}`);
-      else router.push('/admin');
-    }, 800);
+      router.push(`/cardapio?event=${eventId}`);
+    }, 300);
   };
+
+  const showCityPicker = cityHydrated && !selectedCityId;
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Background Pattern */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute top-1/2 -left-24 w-48 h-48 rounded-full bg-accent/10 blur-3xl" />
-        <div className="absolute bottom-24 right-12 w-32 h-32 rounded-full bg-primary/5 blur-2xl" />
       </div>
 
-      <div className="relative min-h-screen flex flex-col">
-        <AnimatePresence mode="wait">
-          {step === 'welcome' && (
-            <motion.div
-              key="welcome"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col"
-            >
-              {/* Hero Image */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-                className="relative z-0 w-full shrink-0"
-              >
-                <div className="relative aspect-[16/10] w-full overflow-hidden">
-                  <img
-                    src="https://curitibacult.com.br/wp-content/uploads/2025/05/Festa-Junina-do-Quermesse-Foto-Canva.jpg"
-                    alt="Festa Junina do Quermesse"
-                    className="absolute inset-0 h-full w-full object-cover [mask-image:linear-gradient(to_bottom,black_50%,transparent_95%)] [-webkit-mask-image:linear-gradient(to_bottom,black_50%,transparent_95%)]"
-                  />
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-background to-transparent" />
-                </div>
-              </motion.div>
-
-              {/* Hero Section */}
-              <div className="relative z-10 flex flex-col items-center bg-background px-6 pb-12 pt-4">
-                {/* Event Name */}
-                <motion.h1
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="text-3xl font-bold text-foreground text-center"
-                >
-                  {displayEvent?.name}
-                </motion.h1>
-
-                {/* Event Info */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="mt-6 flex flex-wrap justify-center gap-3"
-                >
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    <span>{displayEvent?.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
-                    <Calendar className="h-4 w-4 text-primary" />
-                    <span>{displayEvent ? formatEventDate(displayEvent.date) : ''}</span>
-                  </div>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
-                    <Clock className="h-4 w-4 text-primary" />
-                    <span>{displayEvent?.startTime} - {displayEvent?.endTime}</span>
-                  </div>
-                </motion.div>
-
-                {/* Live Badge */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="mt-6 flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 text-green-600 border border-green-500/20"
-                >
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="h-2.5 w-2.5 rounded-full bg-green-500"
-                  />
-                  <span className="text-sm font-semibold">Ingressos à venda!</span>
-                </motion.div>
-
-                {/* Description */}
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-6 text-center text-muted-foreground max-w-sm px-4"
-                >
-                  {displayEvent?.description}
-                </motion.p>
-              </div>
-
-              {events.length > 1 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.55 }}
-                  className="px-6 pb-2 w-full max-w-sm mx-auto"
-                >
-                  <label className="text-sm font-medium text-foreground">Escolher evento</label>
-                  <select
-                    value={selectedEventId}
-                    onChange={(e) => setSelectedEventId(e.target.value)}
-                    className="mt-2 w-full h-12 rounded-xl border border-input bg-background px-3 text-base"
-                  >
-                    {events.map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name}
-                      </option>
-                    ))}
-                  </select>
-                </motion.div>
-              )}
-
-              {/* Actions */}
-              <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="px-6 pb-8 space-y-3"
-              >
-                <Button
-                  onClick={handleContinue}
-                  disabled={loading}
-                  className="w-full h-14 text-lg font-bold rounded-2xl shadow-lg shadow-primary/30"
-                  size="lg"
-                >
-                  {loading ? (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                      className="h-5 w-5 border-2 border-primary-foreground border-t-transparent rounded-full"
-                    />
-                  ) : (
-                    <>
-                      <PartyPopper className="mr-2 h-5 w-5" />
-                      Cardápio e Atrações
-                    </>
-                  )}
+      <header className="relative z-10 border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-3 px-4 py-4">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎪</span>
+            <div>
+              <p className="text-xs text-muted-foreground">FichAqui</p>
+              <h1 className="font-bold text-foreground leading-tight">
+                {selectedCity ? cityLabel(selectedCity) : 'Chega de filas nos seus pedidos'}
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAuthenticated && hasRole('organizer') && (
+              <Link href="/admin">
+                <Button variant="outline" size="sm" className="rounded-xl h-10">
+                  <LayoutDashboard className="h-4 w-4 mr-1" />
+                  Painel
                 </Button>
-
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setStep('login')}
-                    className="flex-1 h-12 rounded-xl"
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Fazer Login
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setStep('admin')}
-                    className="flex-1 h-12 rounded-xl"
-                  >
-                    <Users className="mr-2 h-4 w-4" />
-                    Organizador
-                  </Button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {step === 'login' && (
-            <motion.div
-              key="login"
-              initial={{ opacity: 0, x: 100 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -100 }}
-              className="flex-1 flex flex-col p-6"
-            >
-              <button
-                onClick={() => setStep('welcome')}
-                className="flex items-center gap-2 text-muted-foreground mb-8"
+              </Link>
+            )}
+            {isAuthenticated ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-xl h-10"
+                onClick={logout}
               >
-                <ChevronRight className="h-5 w-5 rotate-180" />
-                Voltar
-              </button>
-
-              <h1 className="text-2xl font-bold text-foreground">Entrar</h1>
-              <p className="mt-2 text-muted-foreground">
-                Acesse sua conta para ver seus pedidos
-              </p>
-
-              <div className="mt-8 space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground">E-mail</label>
-                  <Input
-                    type="email"
-                    placeholder="seu@email.com"
-                    className="mt-2 h-14 rounded-xl text-base"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground">Senha</label>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    className="mt-2 h-14 rounded-xl text-base"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-8 space-y-3">
-                <Button
-                  onClick={handleContinue}
-                  disabled={loading}
-                  className="w-full h-14 text-lg font-bold rounded-2xl"
-                >
+                Sair
+              </Button>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline" size="sm" className="rounded-xl h-10">
+                  <LogIn className="h-4 w-4 mr-1" />
                   Entrar
                 </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
 
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="bg-background px-4 text-muted-foreground">ou</span>
-                  </div>
-                </div>
+      <div className="relative z-10 px-4 py-6 max-w-lg mx-auto space-y-6">
+        {isAuthenticated && (
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Olá, <span className="font-medium text-foreground">{user?.name}</span>
+          </p>
+        )}
 
+        {showCityPicker ? (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h2 className="text-xl font-bold text-foreground">
+              Em qual cidade você está?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Mostramos as festas e quermesses disponíveis na sua cidade.
+            </p>
+            <div className="mt-5 space-y-2">
+              {cities.map((city) => (
+                <button
+                  key={city.id}
+                  type="button"
+                  onClick={() => handleSelectCity(city.id)}
+                  className="w-full flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-4 text-left shadow-sm active:scale-[0.99] transition-transform"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <MapPin className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="font-semibold text-foreground">
+                      {cityLabel(city)}
+                    </span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          </motion.section>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                {cityEvents.length}{' '}
+                {cityEvents.length === 1 ? 'evento encontrado' : 'eventos encontrados'}
+              </p>
+              <button
+                type="button"
+                onClick={clearSelectedCity}
+                className="text-sm font-medium text-primary"
+              >
+                Trocar cidade
+              </button>
+            </div>
+
+            {cityEvents.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+                <p className="font-semibold text-foreground">Nenhum evento por aqui</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Não há festas publicadas em {selectedCity?.name} no momento.
+                </p>
                 <Button
                   variant="outline"
-                  onClick={handleContinue}
-                  className="w-full h-12 rounded-xl"
+                  className="mt-4 rounded-xl"
+                  onClick={clearSelectedCity}
                 >
-                  Continuar com Google
+                  Escolher outra cidade
                 </Button>
               </div>
-            </motion.div>
-          )}
-
-          {step === 'admin' && (
-            <motion.div
-              key="admin"
-              initial={{ opacity: 0, x: 100 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -100 }}
-              className="flex-1 flex flex-col p-6"
-            >
-              <button
-                onClick={() => setStep('welcome')}
-                className="flex items-center gap-2 text-muted-foreground mb-8"
-              >
-                <ChevronRight className="h-5 w-5 rotate-180" />
-                Voltar
-              </button>
-
-              <h1 className="text-2xl font-bold text-foreground">Área do Organizador</h1>
-              <p className="mt-2 text-muted-foreground">
-                Acesse para gerenciar o evento
-              </p>
-
-              <div className="mt-8 space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground">Código do evento</label>
-                  <Input
-                    type="text"
-                    placeholder="FESTA2026"
-                    value={adminCode}
-                    onChange={(e) => setAdminCode(e.target.value.toUpperCase())}
-                    className="mt-2 h-14 rounded-xl text-base uppercase"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground">Senha de acesso</label>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    defaultValue="admin"
-                    className="mt-2 h-14 rounded-xl text-base"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-8">
-                <Button
-                  onClick={handleAdminLogin}
-                  disabled={loading}
-                  className="w-full h-14 text-lg font-bold rounded-2xl"
-                >
-                  {loading ? (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-                      className="h-5 w-5 border-2 border-primary-foreground border-t-transparent rounded-full"
+            ) : (
+              <div className="space-y-3">
+                {cityEvents.map((event, index) => (
+                  <motion.article
+                    key={event.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
+                  >
+                    <div
+                      className="h-2"
+                      style={{ backgroundColor: event.primaryColor }}
                     />
-                  ) : (
-                    'Acessar Painel'
-                  )}
-                </Button>
+                    <div className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
+                          style={{ backgroundColor: `${event.primaryColor}18` }}
+                        >
+                          {event.icon ?? '🎪'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-foreground">{event.name}</h3>
+                            <span
+                              className={cn(
+                                'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                                event.status === 'active'
+                                  ? 'bg-green-500/10 text-green-600'
+                                  : 'bg-secondary text-muted-foreground'
+                              )}
+                            >
+                              {statusLabels[event.status]}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                            {event.description}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {event.location}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {formatEventDate(event.date)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {event.startTime} – {event.endTime}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        className="mt-4 w-full h-12 rounded-xl font-bold"
+                        disabled={loadingEventId === event.id}
+                        onClick={() => handleOpenEvent(event.id)}
+                      >
+                        {loadingEventId === event.id ? (
+                          <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        ) : (
+                          'Ver cardápio e atrações'
+                        )}
+                      </Button>
+                    </div>
+                  </motion.article>
+                ))}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </>
+        )}
       </div>
     </main>
   );

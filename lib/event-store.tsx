@@ -13,12 +13,17 @@ import { buildMenuItemsFromProducts } from '@/lib/catalog/menu-catalog';
 import {
   createDefaultMenuProductsForEvent,
   createDefaultStallsForEvent,
-  parseStoredOrders,
   seedEvents,
   seedMenuProducts,
   seedOrders,
   seedStalls,
 } from '@/lib/seed';
+import {
+  migrateEvents,
+  migrateMenuProducts,
+  migrateOrders,
+  migrateStalls,
+} from '@/lib/seed/migrate-store';
 import { loadJson, saveJson } from '@/lib/storage';
 import type {
   Event,
@@ -47,6 +52,9 @@ interface EventStoreContextType {
   getMenuProductsByEventId: (eventId: string) => MenuProduct[];
   getMenuItemsByEventId: (eventId: string) => MenuItem[];
   getOrdersByEventId: (eventId: string) => Order[];
+  getPublicEvents: () => Event[];
+  getEventsByCityId: (cityId: string, options?: { publicOnly?: boolean }) => Event[];
+  getEventsByOrganizerId: (organizerId: string) => Event[];
   createEvent: (input: CreateEventInput) => Event;
   updateEvent: (id: string, patch: Partial<Event>) => void;
   addStall: (eventId: string, stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }) => Stall;
@@ -66,10 +74,10 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setEvents(loadJson(EVENTS_KEY, seedEvents));
-    setStalls(loadJson(STALLS_KEY, seedStalls));
-    setMenuProducts(loadJson(PRODUCTS_KEY, seedMenuProducts));
-    setOrders(parseStoredOrders(loadJson(ORDERS_KEY, seedOrders)));
+    setEvents(migrateEvents(loadJson<Event[] | null>(EVENTS_KEY, null)));
+    setStalls(migrateStalls(loadJson<Stall[] | null>(STALLS_KEY, null)));
+    setMenuProducts(migrateMenuProducts(loadJson<MenuProduct[] | null>(PRODUCTS_KEY, null)));
+    setOrders(migrateOrders(loadJson<Order[] | null>(ORDERS_KEY, null)));
     setHydrated(true);
   }, []);
 
@@ -119,6 +127,27 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
         .filter((o) => o.eventId === eventId)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
     [orders]
+  );
+
+  const getPublicEvents = useCallback(() => {
+    return events.filter(
+      (e) => e.status === 'active' || e.status === 'published'
+    );
+  }, [events]);
+
+  const getEventsByCityId = useCallback(
+    (cityId: string, options?: { publicOnly?: boolean }) => {
+      let list = events.filter((e) => e.cityId === cityId);
+      if (!options?.publicOnly) return list;
+      return list.filter((e) => e.status === 'active' || e.status === 'published');
+    },
+    [events]
+  );
+
+  const getEventsByOrganizerId = useCallback(
+    (organizerId: string) =>
+      events.filter((e) => e.organizerId === organizerId),
+    [events]
   );
 
   const createEvent = useCallback((input: CreateEventInput) => {
@@ -199,6 +228,9 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       getMenuProductsByEventId,
       getMenuItemsByEventId,
       getOrdersByEventId,
+      getPublicEvents,
+      getEventsByCityId,
+      getEventsByOrganizerId,
       createEvent,
       updateEvent,
       addStall,
@@ -218,6 +250,9 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       getMenuProductsByEventId,
       getMenuItemsByEventId,
       getOrdersByEventId,
+      getPublicEvents,
+      getEventsByCityId,
+      getEventsByOrganizerId,
       createEvent,
       updateEvent,
       addStall,
