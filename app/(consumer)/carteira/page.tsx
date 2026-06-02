@@ -6,14 +6,10 @@ import { useSearchParams } from 'next/navigation';
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/lib/cart-context';
-import {
-  Ficha,
-  getFichasFromOrder,
-  isFichaValid,
-  mockAvailableFichas,
-  mockWalletBalance,
-} from '@/lib/mock-data';
+import { Ficha, mockWalletBalance } from '@/lib/mock-data';
 import { FichaCard } from '@/components/ficha-card';
+import { useConsumerScope, type ConsumerScope } from '@/lib/consumer-scope';
+import { isFichaExcludedFromEvent, resolveWalletFichas } from '@/lib/wallet-fichas';
 import { cn } from '@/lib/utils';
 
 const mockTransactions = [
@@ -110,7 +106,13 @@ function TransactionsList() {
   );
 }
 
-function FichasList({ fichas }: { fichas: Ficha[] }) {
+function FichasList({
+  fichas,
+  scope,
+}: {
+  fichas: Ficha[];
+  scope: ConsumerScope;
+}) {
   if (fichas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -134,7 +136,10 @@ function FichasList({ fichas }: { fichas: Ficha[] }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 }}
         >
-          <FichaCard ficha={ficha} />
+          <FichaCard
+            ficha={ficha}
+            excludedFromEvent={isFichaExcludedFromEvent(ficha.id, scope)}
+          />
         </motion.div>
       ))}
     </div>
@@ -148,14 +153,11 @@ function CarteiraContent() {
   const initialTabIndex = tabs.findIndex((t) => t.id === initialTab);
 
   const { orders } = useCart();
+  const scope = useConsumerScope();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [[tabIndex, direction], setTabPosition] = useState([initialTabIndex, 0]);
 
-  const availableFichas = useMemo(() => {
-    const fromOrders = orders.flatMap(getFichasFromOrder).filter(isFichaValid);
-    if (fromOrders.length > 0) return fromOrders;
-    return mockAvailableFichas;
-  }, [orders]);
+  const availableFichas = useMemo(() => resolveWalletFichas(orders), [orders]);
 
   const selectTab = (tabId: TabId) => {
     const newIndex = tabs.findIndex((t) => t.id === tabId);
@@ -232,7 +234,7 @@ function CarteiraContent() {
                 {activeTab === 'movimentacoes' ? (
                   <TransactionsList />
                 ) : (
-                  <FichasList fichas={availableFichas} />
+                  <FichasList fichas={availableFichas} scope={scope} />
                 )}
               </motion.div>
             </AnimatePresence>

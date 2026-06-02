@@ -6,6 +6,7 @@ import { ChevronLeft, Flame, ShoppingBag } from 'lucide-react';
 import { getProductById } from '@/lib/menu-utils';
 import { useCart } from '@/lib/cart-context';
 import { useEventStore } from '@/lib/event-store';
+import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
 import { ProductPriceDisplay } from '@/components/product-price-display';
 import { MenuVariantRow } from '@/components/menu-item-card';
@@ -28,9 +29,9 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   useEffect(() => {
     if (!product || !product.available) {
-      router.replace('/cardapio');
+      router.replace(buildConsumerEventHref('/cardapio', eventId));
     }
-  }, [product, router]);
+  }, [product, router, eventId]);
 
   if (!product || !product.available) {
     return null;

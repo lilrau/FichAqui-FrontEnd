@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 import {
   Calendar,
   ChevronRight,
@@ -14,7 +13,10 @@ import {
   User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { HomeConsumerNav } from '@/components/home-consumer-nav';
+import { useNavigation } from '@/components/navigation-provider';
 import { useAuth } from '@/lib/auth-context';
+import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useCity } from '@/lib/city-context';
 import { useActiveEvent } from '@/lib/event-context';
 import { useEventStore } from '@/lib/event-store';
@@ -31,8 +33,8 @@ const statusLabels: Record<Event['status'], string> = {
 };
 
 export default function HomePage() {
-  const router = useRouter();
-  const { user, isAuthenticated, hasRole, logout } = useAuth();
+  const { startNav, isPending } = useNavigation();
+  const { user, isAuthenticated, hasRole, logout, hydrated: authHydrated } = useAuth();
   const {
     cities,
     selectedCityId,
@@ -56,15 +58,24 @@ export default function HomePage() {
   const handleOpenEvent = (eventId: string) => {
     setLoadingEventId(eventId);
     setActiveEventId(eventId);
-    setTimeout(() => {
-      router.push(`/cardapio?event=${eventId}`);
-    }, 300);
+    startNav(buildConsumerEventHref('/cardapio', eventId));
   };
+
+  useEffect(() => {
+    if (!isPending) {
+      setLoadingEventId(null);
+    }
+  }, [isPending]);
 
   const showCityPicker = cityHydrated && !selectedCityId;
 
   return (
-    <main className="min-h-screen bg-background">
+    <main
+      className={cn(
+        'min-h-screen bg-background',
+        authHydrated && isAuthenticated && 'pb-24'
+      )}
+    >
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute top-1/2 -left-24 w-48 h-48 rounded-full bg-accent/10 blur-3xl" />
@@ -255,6 +266,8 @@ export default function HomePage() {
           </>
         )}
       </div>
+
+      <HomeConsumerNav />
     </main>
   );
 }

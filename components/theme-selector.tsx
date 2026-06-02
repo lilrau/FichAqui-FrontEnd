@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import {
+  applyThemeWithTransition,
+  type ThemeValue,
+} from '@/lib/apply-theme-transition';
 import { cn } from '@/lib/utils';
-
-type ThemeValue = 'light' | 'system' | 'dark';
 
 const spring = { type: 'spring' as const, stiffness: 420, damping: 34 };
 
@@ -98,7 +100,7 @@ export function ThemeSelector({ className }: { className?: string }) {
               aria-checked={selected}
               aria-label={option.label}
               whileTap={{ scale: 0.94 }}
-              onClick={() => setTheme(option.value)}
+              onClick={() => applyThemeWithTransition(setTheme, option.value)}
               className={cn(
                 'relative flex flex-col items-center gap-2 rounded-xl py-3 outline-none',
                 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'

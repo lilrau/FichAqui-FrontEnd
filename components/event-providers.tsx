@@ -2,6 +2,8 @@
 
 import { Suspense, type ReactNode } from 'react';
 import { AppReadyGate } from '@/components/app-ready-gate';
+import { NavigationProvider } from '@/components/navigation-provider';
+import { PageTransition } from '@/components/page-transition';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/auth-context';
 import { CityProvider } from '@/lib/city-context';
@@ -13,7 +15,11 @@ function ProvidersInner({ children }: { children: ReactNode }) {
   return (
     <EventProvider>
       <CartProvider>
-        <AppReadyGate>{children}</AppReadyGate>
+        <NavigationProvider>
+          <AppReadyGate>
+            <PageTransition>{children}</PageTransition>
+          </AppReadyGate>
+        </NavigationProvider>
       </CartProvider>
     </EventProvider>
   );
@@ -21,12 +27,7 @@ function ProvidersInner({ children }: { children: ReactNode }) {
 
 export function EventProviders({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
         <CityProvider>
           <EventStoreProvider>

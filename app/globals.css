@@ -4,6 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  color-scheme: light;
   --background: oklch(0.98 0.01 60);
   --foreground: oklch(0.25 0.02 30);
   --card: oklch(1 0 0);
@@ -46,6 +47,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.18 0.02 30);
   --foreground: oklch(0.95 0.01 60);
   --card: oklch(0.22 0.02 30);
@@ -137,5 +139,73 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Transição suave entre temas claro / escuro */
+@media (prefers-reduced-motion: no-preference) {
+  @property --background {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.98 0.01 60);
+  }
+  @property --foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.25 0.02 30);
+  }
+  @property --card {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(1 0 0);
+  }
+  @property --card-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.25 0.02 30);
+  }
+  @property --muted {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.94 0.01 60);
+  }
+  @property --muted-foreground {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.5 0.02 30);
+  }
+  @property --border {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.9 0.02 60);
+  }
+  @property --primary {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.65 0.18 40);
+  }
+  @property --secondary {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: oklch(0.95 0.02 80);
+  }
+
+  html.theme-transition {
+    transition:
+      --background 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --foreground 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --card 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --card-foreground 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --muted 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --muted-foreground 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --border 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --primary 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+      --secondary 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.45s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }

@@ -1,22 +1,21 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { Suspense, type ReactNode } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigation } from '@/components/navigation-provider';
 
-const transition = {
-  type: 'spring' as const,
-  stiffness: 380,
-  damping: 34,
-  mass: 0.85,
-};
+const fadeTransition = { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const };
 
-interface PageTransitionProps {
-  children: React.ReactNode;
+function useRouteKey(): string {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
 }
 
-export function PageTransition({ children }: PageTransitionProps) {
-  const pathname = usePathname();
+function PageTransitionInner({ children }: { children: ReactNode }) {
+  const routeKey = useRouteKey();
   const { isPending } = useNavigation();
 
   return (
@@ -48,16 +47,24 @@ export function PageTransition({ children }: PageTransitionProps) {
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
-          key={pathname}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={transition}
-          className="min-h-screen will-change-[opacity,transform]"
+          key={routeKey}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={fadeTransition}
+          className="min-h-screen"
         >
           {children}
         </motion.div>
       </AnimatePresence>
     </div>
+  );
+}
+
+export function PageTransition({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen">{children}</div>}>
+      <PageTransitionInner>{children}</PageTransitionInner>
+    </Suspense>
   );
 }

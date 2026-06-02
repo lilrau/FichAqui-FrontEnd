@@ -14,7 +14,7 @@ import {
   Palette,
 } from 'lucide-react';
 import { ThemeSelector } from '@/components/theme-selector';
-import { useActiveEvent } from '@/lib/event-context';
+import { useAuth } from '@/lib/auth-context';
 
 const mockUser = {
   name: 'Maria Silva',
@@ -24,7 +24,8 @@ const mockUser = {
 
 export default function PerfilPage() {
   const router = useRouter();
-  const { activeEvent } = useActiveEvent();
+  const { user } = useAuth();
+  const displayName = user?.name ?? mockUser.name;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -43,8 +44,8 @@ export default function PerfilPage() {
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
             <User className="h-10 w-10" />
           </div>
-          <h2 className="mt-4 text-xl font-bold text-foreground">{mockUser.name}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{activeEvent?.name}</p>
+          <h2 className="mt-4 text-xl font-bold text-foreground">{displayName}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{mockUser.email}</p>
         </motion.div>
 
         <motion.div

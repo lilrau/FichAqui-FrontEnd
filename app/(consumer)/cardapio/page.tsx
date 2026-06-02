@@ -13,6 +13,7 @@ import {
   mockAvailableFichas,
 } from '@/lib/mock-data';
 import { useEventStore } from '@/lib/event-store';
+import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useActiveEvent, useEventId } from '@/lib/event-context';
 import { productMatchesSearch } from '@/lib/menu-utils';
 import { MenuItemCard } from '@/components/menu-item-card';
@@ -98,7 +99,9 @@ function CardapioContent() {
 
               <button
                 type="button"
-                onClick={() => router.push('/carteira?tab=fichas')}
+                onClick={() =>
+                  router.push(buildConsumerEventHref('/carteira', eventId, { tab: 'fichas' }))
+                }
                 className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 transition-colors hover:bg-secondary/80"
               >
                 <Wallet className="h-5 w-5 text-primary" />

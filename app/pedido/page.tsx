@@ -5,13 +5,17 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Check, PartyPopper } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
+import { buildConsumerEventHref } from '@/lib/consumer-scope';
+import { useEventId } from '@/lib/event-context';
 import { OrderStatus, OrderQRCode } from '@/components/order-status';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/menu-item-card';
 
 function PedidoContent() {
   const router = useRouter();
+  const eventId = useEventId();
   const { items, total, createOrder, currentOrder } = useCart();
+  const cardapioHref = buildConsumerEventHref('/cardapio', eventId);
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -33,7 +37,7 @@ function PedidoContent() {
         <header className="sticky top-0 z-30 bg-background border-b border-border">
           <div className="flex items-center justify-between px-4 py-4">
             <button
-              onClick={() => router.push('/cardapio')}
+              onClick={() => router.push(cardapioHref)}
               className="flex items-center gap-2 text-muted-foreground"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -107,7 +111,7 @@ function PedidoContent() {
 
               {/* Back Button */}
               <Button
-                onClick={() => router.push('/cardapio')}
+                onClick={() => router.push(cardapioHref)}
                 variant="outline"
                 className="w-full h-14 rounded-xl text-lg"
               >
@@ -150,7 +154,7 @@ function PedidoContent() {
               Adicione itens do cardápio
             </p>
             <Button
-              onClick={() => router.push('/cardapio')}
+              onClick={() => router.push(cardapioHref)}
               className="mt-6"
             >
               Ver cardápio

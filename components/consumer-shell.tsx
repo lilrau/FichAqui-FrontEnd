@@ -1,14 +1,26 @@
 'use client';
 
+import { Suspense } from 'react';
 import { BottomNav } from '@/components/bottom-nav';
-import { NavigationProvider } from '@/components/navigation-provider';
-import { PageTransition } from '@/components/page-transition';
+import { useConsumerScope } from '@/lib/consumer-scope';
+import { useAuth } from '@/lib/auth-context';
+
+function ConsumerBottomNav() {
+  const scope = useConsumerScope();
+  const { isAuthenticated, hydrated } = useAuth();
+  const variant =
+    scope === 'global' && hydrated && isAuthenticated ? 'home' : 'event';
+
+  return <BottomNav variant={variant} />;
+}
 
 export function ConsumerShell({ children }: { children: React.ReactNode }) {
   return (
-    <NavigationProvider>
-      <PageTransition>{children}</PageTransition>
-      <BottomNav />
-    </NavigationProvider>
+    <>
+      {children}
+      <Suspense fallback={null}>
+        <ConsumerBottomNav />
+      </Suspense>
+    </>
   );
 }
