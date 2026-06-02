@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { Home, Wallet, UtensilsCrossed, Clock, User, type LucideIcon } from 'lucide-react';
 import { useNavigation } from '@/components/navigation-provider';
 import { buildConsumerEventHref, useConsumerScope } from '@/lib/consumer-scope';
@@ -74,61 +74,80 @@ function useIsNavActive() {
   };
 }
 
+const activePillTransition = { type: 'spring', stiffness: 400, damping: 30 } as const;
+const tabMotionTransition = { duration: 0.22, ease: [0.4, 0, 0.2, 1] as const };
+
 function BottomNavBar({ variant = 'event' }: { variant?: 'event' | 'home' }) {
   const { startNav, isPending } = useNavigation();
   const tabs = useNavTabs(variant);
   const isNavActive = useIsNavActive();
-  const layoutId = variant === 'home' ? 'bottom-nav-active-home' : 'bottom-nav-active';
 
   return (
-    <nav
-      className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-md pb-4"
-      aria-label="Navegação principal"
-    >
-      <div className="flex items-center justify-around px-2 pt-2">
-        {tabs.map(({ href, label, icon: Icon, matchPrefix }) => {
-          const active = isNavActive(href, matchPrefix);
+    <LayoutGroup id="bottom-nav">
+      <nav
+        className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-md pb-4"
+        aria-label="Navegação principal"
+      >
+        <motion.div
+          layout
+          className="flex items-center justify-around px-2 pt-2"
+          transition={activePillTransition}
+        >
+          <AnimatePresence mode="popLayout" initial={false}>
+            {tabs.map(({ href, label, icon: Icon, matchPrefix }) => {
+              const active = isNavActive(href, matchPrefix);
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              prefetch
-              onClick={(e) => {
-                if (active) {
-                  e.preventDefault();
-                  return;
-                }
-                e.preventDefault();
-                startNav(href);
-              }}
-              className={cn(
-                'relative flex flex-1 flex-col items-center gap-1 py-2 transition-colors',
-                active ? 'text-primary' : 'text-muted-foreground',
-                isPending && !active && 'opacity-70'
-              )}
-            >
-              {active && (
+              return (
                 <motion.div
-                  layoutId={layoutId}
-                  className="absolute inset-x-2 inset-y-1 rounded-xl bg-primary/10"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
-              <Icon className={cn('relative z-10 h-5 w-5', active && 'stroke-[2.5]')} />
-              <span
-                className={cn(
-                  'relative z-10 text-[11px] leading-tight',
-                  active ? 'font-semibold' : 'font-medium'
-                )}
-              >
-                {label}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+                  key={label}
+                  layout
+                  initial={{ opacity: 0, scale: 0.88 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.88 }}
+                  transition={tabMotionTransition}
+                  className="flex flex-1 min-w-0"
+                >
+                  <Link
+                    href={href}
+                    prefetch
+                    onClick={(e) => {
+                      if (active) {
+                        e.preventDefault();
+                        return;
+                      }
+                      e.preventDefault();
+                      startNav(href);
+                    }}
+                    className={cn(
+                      'relative flex w-full flex-col items-center gap-1 py-2 transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground',
+                      isPending && !active && 'opacity-70'
+                    )}
+                  >
+                    {active && (
+                      <motion.div
+                        layoutId="bottom-nav-active"
+                        className="absolute inset-x-2 inset-y-1 rounded-xl bg-primary/10"
+                        transition={activePillTransition}
+                      />
+                    )}
+                    <Icon className={cn('relative z-10 h-5 w-5', active && 'stroke-[2.5]')} />
+                    <span
+                      className={cn(
+                        'relative z-10 text-[11px] leading-tight',
+                        active ? 'font-semibold' : 'font-medium'
+                      )}
+                    >
+                      {label}
+                    </span>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      </nav>
+    </LayoutGroup>
   );
 }
 

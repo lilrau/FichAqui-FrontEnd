@@ -13,7 +13,6 @@ import {
   User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { HomeConsumerNav } from '@/components/home-consumer-nav';
 import { useNavigation } from '@/components/navigation-provider';
 import { useAuth } from '@/lib/auth-context';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
@@ -266,8 +265,6 @@ export default function HomePage() {
           </>
         )}
       </div>
-
-      <HomeConsumerNav />
     </main>
   );
 }

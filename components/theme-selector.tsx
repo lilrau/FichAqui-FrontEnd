@@ -16,30 +16,10 @@ const themeOptions: {
   value: ThemeValue;
   label: string;
   icon: LucideIcon;
-  preview: string;
-  iconClass: string;
 }[] = [
-  {
-    value: 'light',
-    label: 'Claro',
-    icon: Sun,
-    preview: 'from-amber-100 via-orange-50 to-amber-50',
-    iconClass: 'text-amber-600',
-  },
-  {
-    value: 'system',
-    label: 'Sistema',
-    icon: Monitor,
-    preview: 'from-muted via-secondary to-muted',
-    iconClass: 'text-foreground/70',
-  },
-  {
-    value: 'dark',
-    label: 'Escuro',
-    icon: Moon,
-    preview: 'from-slate-700 via-slate-800 to-slate-900',
-    iconClass: 'text-slate-200',
-  },
+  { value: 'light', label: 'Claro', icon: Sun },
+  { value: 'system', label: 'Sistema', icon: Monitor },
+  { value: 'dark', label: 'Escuro', icon: Moon },
 ];
 
 function ThemeSelectorSkeleton({ className }: { className?: string }) {
@@ -56,7 +36,7 @@ function ThemeSelectorSkeleton({ className }: { className?: string }) {
           key={i}
           className="flex flex-col items-center gap-2.5 rounded-xl py-3.5 animate-pulse"
         >
-          <div className="h-11 w-11 rounded-xl bg-muted" />
+          <div className="h-6 w-6 rounded bg-muted" />
           <div className="h-3 w-10 rounded-md bg-muted" />
         </div>
       ))}
@@ -115,17 +95,17 @@ export function ThemeSelector({ className }: { className?: string }) {
               )}
 
               <motion.span
-                className={cn(
-                  'relative z-10 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-inner ring-1 ring-black/5 dark:ring-white/10',
-                  option.preview
-                )}
-                animate={{
-                  scale: selected ? 1.06 : 1,
-                  y: selected ? -1 : 0,
-                }}
+                className="relative z-10"
+                animate={{ scale: selected ? 1.08 : 1 }}
                 transition={spring}
               >
-                <Icon className={cn('h-5 w-5', option.iconClass)} strokeWidth={2.25} />
+                <Icon
+                  className={cn(
+                    'h-6 w-6',
+                    selected ? 'text-foreground' : 'text-muted-foreground'
+                  )}
+                  strokeWidth={2}
+                />
               </motion.span>
 
               <motion.span

@@ -2,6 +2,7 @@
 
 import { Suspense, type ReactNode } from 'react';
 import { AppReadyGate } from '@/components/app-ready-gate';
+import { GlobalConsumerNav } from '@/components/global-consumer-nav';
 import { NavigationProvider } from '@/components/navigation-provider';
 import { PageTransition } from '@/components/page-transition';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -18,6 +19,9 @@ function ProvidersInner({ children }: { children: ReactNode }) {
         <NavigationProvider>
           <AppReadyGate>
             <PageTransition>{children}</PageTransition>
+            <Suspense fallback={null}>
+              <GlobalConsumerNav />
+            </Suspense>
           </AppReadyGate>
         </NavigationProvider>
       </CartProvider>
