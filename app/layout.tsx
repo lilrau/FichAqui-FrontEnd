@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Nunito } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { CartProvider } from '@/lib/cart-context'
+import { EventProviders } from '@/components/event-providers'
 import './globals.css'
 
 const nunito = Nunito({ 
@@ -11,7 +11,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: 'Quermesse Digital | Festa de São João',
+  title: 'Quermesse Digital | Gestão de Eventos',
   description: 'Sistema de gestão para quermesses e festas de igreja',
   generator: 'v0.app',
 }
@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="bg-background">
       <body className={`${nunito.variable} font-sans antialiased min-h-screen`}>
-        <CartProvider>{children}</CartProvider>
+        <EventProviders>{children}</EventProviders>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

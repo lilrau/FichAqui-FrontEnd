@@ -9,6 +9,7 @@ export interface MenuVariant {
 
 export interface MenuProduct {
   id: string;
+  eventId: string;
   name: string;
   description: string;
   category: string;
@@ -42,6 +43,7 @@ export interface Category {
 
 export interface Stall {
   id: string;
+  eventId: string;
   name: string;
   category: string;
   responsible: string;
@@ -54,6 +56,7 @@ export type OrderStatus = 'available' | 'delivered';
 
 export interface Order {
   id: string;
+  eventId: string;
   number: string;
   items: { item: MenuItem; quantity: number }[];
   total: number;
@@ -168,22 +171,52 @@ export interface Event {
   status: 'draft' | 'published' | 'active' | 'finished';
   capacity: number;
   primaryColor: string;
+  code?: string;
 }
 
-// Dados mockados
-export const currentEvent: Event = {
-  id: '1',
-  name: 'Festa de São João',
-  description: 'A maior festa junina da comunidade! Venha celebrar com comidas típicas, jogos e muita diversão.',
-  date: '2026-06-24',
-  startTime: '18:00',
-  endTime: '23:00',
-  location: 'Paróquia São João Batista',
-  banner: '/festa-banner.jpg',
-  status: 'active',
-  capacity: 500,
-  primaryColor: '#d97706',
-};
+export const seedEvents: Event[] = [
+  {
+    id: '1',
+    name: 'Festa de São João',
+    description:
+      'A maior festa junina da comunidade! Venha celebrar com comidas típicas, jogos e muita diversão.',
+    date: '2026-06-24',
+    startTime: '18:00',
+    endTime: '23:00',
+    location: 'Paróquia São João Batista',
+    banner: '/festa-banner.jpg',
+    status: 'active',
+    capacity: 500,
+    primaryColor: '#d97706',
+    code: 'FESTA2026',
+  },
+  {
+    id: '2',
+    name: 'Festa de Natal',
+    description:
+      'Celebração natalina com comidas típicas, doces e bebidas quentes para toda a família.',
+    date: '2026-12-25',
+    startTime: '17:00',
+    endTime: '22:00',
+    location: 'Salão Paroquial',
+    banner: '/natal-banner.jpg',
+    status: 'published',
+    capacity: 300,
+    primaryColor: '#dc2626',
+    code: 'NATAL2026',
+  },
+];
+
+export const events = seedEvents;
+
+export function getEventById(id: string): Event | undefined {
+  return seedEvents.find((e) => e.id === id);
+}
+
+export function getEventByCode(code: string): Event | undefined {
+  const normalized = code.trim().toUpperCase();
+  return seedEvents.find((e) => e.code?.toUpperCase() === normalized);
+}
 
 export const categories: Category[] = [
   { id: 'comidas', name: 'Comidas', icon: 'UtensilsCrossed', color: '#ef4444' },
@@ -193,17 +226,30 @@ export const categories: Category[] = [
   { id: 'brincadeiras', name: 'Brincadeiras', icon: 'PartyPopper', color: '#f59e0b' },
 ];
 
-export const stalls: Stall[] = [
-  { id: 'stall-1', name: 'Barraca do Pastel', category: 'comidas', responsible: 'Maria Silva', color: '#ef4444', status: 'open', stock: 150 },
-  { id: 'stall-2', name: 'Barraca do Milho', category: 'comidas', responsible: 'João Santos', color: '#f59e0b', status: 'open', stock: 200 },
-  { id: 'stall-3', name: 'Doces da Vovó', category: 'doces', responsible: 'Ana Costa', color: '#ec4899', status: 'open', stock: 100 },
-  { id: 'stall-4', name: 'Cantinho das Bebidas', category: 'bebidas', responsible: 'Pedro Lima', color: '#3b82f6', status: 'open', stock: 300 },
-  { id: 'stall-5', name: 'Pescaria', category: 'jogos', responsible: 'Carlos Oliveira', color: '#22c55e', status: 'open', stock: 50 },
-  { id: 'stall-6', name: 'Bingo', category: 'brincadeiras', responsible: 'Lucia Ferreira', color: '#8b5cf6', status: 'open', stock: 100 },
-  { id: 'stall-7', name: 'Correio Elegante', category: 'brincadeiras', responsible: 'Fernanda Rocha', color: '#f43f5e', status: 'open', stock: 200 },
+const stallsEvent1: Stall[] = [
+  { id: 'stall-1', eventId: '1', name: 'Barraca do Pastel', category: 'comidas', responsible: 'Maria Silva', color: '#ef4444', status: 'open', stock: 150 },
+  { id: 'stall-2', eventId: '1', name: 'Barraca do Milho', category: 'comidas', responsible: 'João Santos', color: '#f59e0b', status: 'open', stock: 200 },
+  { id: 'stall-3', eventId: '1', name: 'Doces da Vovó', category: 'doces', responsible: 'Ana Costa', color: '#ec4899', status: 'open', stock: 100 },
+  { id: 'stall-4', eventId: '1', name: 'Cantinho das Bebidas', category: 'bebidas', responsible: 'Pedro Lima', color: '#3b82f6', status: 'open', stock: 300 },
+  { id: 'stall-5', eventId: '1', name: 'Pescaria', category: 'jogos', responsible: 'Carlos Oliveira', color: '#22c55e', status: 'open', stock: 50 },
+  { id: 'stall-6', eventId: '1', name: 'Bingo', category: 'brincadeiras', responsible: 'Lucia Ferreira', color: '#8b5cf6', status: 'open', stock: 100 },
+  { id: 'stall-7', eventId: '1', name: 'Correio Elegante', category: 'brincadeiras', responsible: 'Fernanda Rocha', color: '#f43f5e', status: 'open', stock: 200 },
 ];
 
-export const menuProducts: MenuProduct[] = [
+const stallsEvent2: Stall[] = [
+  { id: 'stall-n1', eventId: '2', name: 'Barraca do Peru', category: 'comidas', responsible: 'Roberto Alves', color: '#dc2626', status: 'open', stock: 80 },
+  { id: 'stall-n2', eventId: '2', name: 'Doces Natalinos', category: 'doces', responsible: 'Helena Dias', color: '#16a34a', status: 'open', stock: 120 },
+  { id: 'stall-n3', eventId: '2', name: 'Bebidas Quentes', category: 'bebidas', responsible: 'Marcos Prado', color: '#ca8a04', status: 'open', stock: 200 },
+];
+
+export const seedStalls: Stall[] = [...stallsEvent1, ...stallsEvent2];
+export const stalls = seedStalls;
+
+export function getStallsByEventId(eventId: string): Stall[] {
+  return seedStalls.filter((s) => s.eventId === eventId);
+}
+
+const menuProductsEvent1: Omit<MenuProduct, 'eventId'>[] = [
   {
     id: 'pastel',
     name: 'Pastel',
@@ -435,6 +481,72 @@ export const menuProducts: MenuProduct[] = [
   },
 ];
 
+const menuProductsEvent2: Omit<MenuProduct, 'eventId'>[] = [
+  {
+    id: 'peru-assado',
+    name: 'Peru Assado',
+    description: 'Fatia generosa de peru assado com temperos natalinos',
+    category: 'comidas',
+    image: '🦃',
+    badge: 'Especial',
+    available: true,
+    stallId: 'stall-n1',
+    variants: [{ id: 'peru-assado-fatia', label: 'Fatia', price: 15.0, available: true }],
+  },
+  {
+    id: 'panetone',
+    name: 'Panetone',
+    description: 'Fatia de panetone com frutas cristalizadas',
+    category: 'doces',
+    image: '🍞',
+    available: true,
+    stallId: 'stall-n2',
+    variants: [{ id: 'panetone-fatia', label: 'Fatia', price: 8.0, available: true }],
+  },
+  {
+    id: 'rabanada',
+    name: 'Rabanada',
+    description: 'Rabanada crocante com canela e açúcar',
+    category: 'doces',
+    image: '🍞',
+    available: true,
+    stallId: 'stall-n2',
+    variants: [{ id: 'rabanada-unidade', label: 'Unidade', price: 5.0, available: true }],
+  },
+  {
+    id: 'chocolate-quente',
+    name: 'Chocolate Quente',
+    description: 'Chocolate cremoso com marshmallow',
+    category: 'bebidas',
+    image: '☕',
+    badge: 'Quentinho',
+    available: true,
+    stallId: 'stall-n3',
+    variants: [{ id: 'chocolate-quente-copo', label: 'Copo', price: 7.0, available: true }],
+  },
+  {
+    id: 'vinho-natal',
+    name: 'Vinho Quente',
+    description: 'Vinho temperado com especiarias natalinas',
+    category: 'bebidas',
+    image: '🍷',
+    available: true,
+    stallId: 'stall-n3',
+    variants: [{ id: 'vinho-natal-copo', label: 'Copo', price: 9.0, available: true }],
+  },
+];
+
+export const seedMenuProducts: MenuProduct[] = [
+  ...menuProductsEvent1.map((p) => ({ ...p, eventId: '1' })),
+  ...menuProductsEvent2.map((p) => ({ ...p, eventId: '2' })),
+];
+
+export const menuProducts = seedMenuProducts;
+
+export function getMenuProductsByEventId(eventId: string): MenuProduct[] {
+  return seedMenuProducts.filter((p) => p.eventId === eventId);
+}
+
 function buildMenuItemsFromProducts(products: MenuProduct[]): MenuItem[] {
   return products.flatMap((product) =>
     product.variants.map((variant) => {
@@ -460,7 +572,11 @@ function buildMenuItemsFromProducts(products: MenuProduct[]): MenuItem[] {
   );
 }
 
-export const menuItems: MenuItem[] = buildMenuItemsFromProducts(menuProducts);
+export const menuItems: MenuItem[] = buildMenuItemsFromProducts(seedMenuProducts);
+
+export function getMenuItemsByEventId(eventId: string): MenuItem[] {
+  return buildMenuItemsFromProducts(getMenuProductsByEventId(eventId));
+}
 
 // Função para gerar número de pedido
 export function generateOrderNumber(): string {

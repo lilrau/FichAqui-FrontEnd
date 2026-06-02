@@ -6,24 +6,35 @@ import { useRouter } from 'next/navigation';
 import { MapPin, Calendar, Clock, User, Users, ChevronRight, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { currentEvent } from '@/lib/mock-data';
+import { useEventStore } from '@/lib/event-store';
+import { useActiveEvent } from '@/lib/event-context';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { events } = useEventStore();
+  const { setActiveEventId } = useActiveEvent();
   const [step, setStep] = useState<'welcome' | 'login' | 'admin'>('welcome');
   const [loading, setLoading] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState('1');
+  const [adminCode, setAdminCode] = useState('FESTA2026');
+
+  const displayEvent = events.find((e) => e.id === selectedEventId) ?? events[0];
 
   const handleContinue = () => {
     setLoading(true);
+    setActiveEventId(selectedEventId);
     setTimeout(() => {
-      router.push('/cardapio');
+      router.push(`/cardapio?event=${selectedEventId}`);
     }, 800);
   };
 
   const handleAdminLogin = () => {
     setLoading(true);
+    const code = adminCode.trim().toUpperCase();
+    const match = events.find((e) => e.code?.toUpperCase() === code);
     setTimeout(() => {
-      router.push('/admin');
+      if (match) router.push(`/admin/${match.id}`);
+      else router.push('/admin');
     }, 800);
   };
 
@@ -72,7 +83,7 @@ export default function LoginPage() {
                   transition={{ delay: 0.2 }}
                   className="text-3xl font-bold text-foreground text-center"
                 >
-                  {currentEvent.name}
+                  {displayEvent?.name}
                 </motion.h1>
 
                 {/* Event Info */}
@@ -84,7 +95,7 @@ export default function LoginPage() {
                 >
                   <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
                     <MapPin className="h-4 w-4 text-primary" />
-                    <span>{currentEvent.location}</span>
+                    <span>{displayEvent?.location}</span>
                   </div>
                   <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
                     <Calendar className="h-4 w-4 text-primary" />
@@ -92,7 +103,7 @@ export default function LoginPage() {
                   </div>
                   <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
                     <Clock className="h-4 w-4 text-primary" />
-                    <span>{currentEvent.startTime} - {currentEvent.endTime}</span>
+                    <span>{displayEvent?.startTime} - {displayEvent?.endTime}</span>
                   </div>
                 </motion.div>
 
@@ -118,9 +129,31 @@ export default function LoginPage() {
                   transition={{ delay: 0.5 }}
                   className="mt-6 text-center text-muted-foreground max-w-sm px-4"
                 >
-                  {currentEvent.description}
+                  {displayEvent?.description}
                 </motion.p>
               </div>
+
+              {events.length > 1 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.55 }}
+                  className="px-6 pb-2 w-full max-w-sm mx-auto"
+                >
+                  <label className="text-sm font-medium text-foreground">Escolher evento</label>
+                  <select
+                    value={selectedEventId}
+                    onChange={(e) => setSelectedEventId(e.target.value)}
+                    className="mt-2 w-full h-12 rounded-xl border border-input bg-background px-3 text-base"
+                  >
+                    {events.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
+                      </option>
+                    ))}
+                  </select>
+                </motion.div>
+              )}
 
               {/* Actions */}
               <motion.div
@@ -267,7 +300,8 @@ export default function LoginPage() {
                   <Input
                     type="text"
                     placeholder="FESTA2026"
-                    defaultValue="FESTA2026"
+                    value={adminCode}
+                    onChange={(e) => setAdminCode(e.target.value.toUpperCase())}
                     className="mt-2 h-14 rounded-xl text-base uppercase"
                   />
                 </div>

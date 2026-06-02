@@ -12,7 +12,7 @@ import {
   KeyRound,
   CreditCard,
 } from 'lucide-react';
-import { currentEvent } from '@/lib/mock-data';
+import { useActiveEvent } from '@/lib/event-context';
 
 const mockUser = {
   name: 'Maria Silva',
@@ -22,6 +22,7 @@ const mockUser = {
 
 export default function PerfilPage() {
   const router = useRouter();
+  const { activeEvent } = useActiveEvent();
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -41,7 +42,7 @@ export default function PerfilPage() {
             <User className="h-10 w-10" />
           </div>
           <h2 className="mt-4 text-xl font-bold text-foreground">{mockUser.name}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{currentEvent.name}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{activeEvent?.name}</p>
         </motion.div>
 
         <motion.div

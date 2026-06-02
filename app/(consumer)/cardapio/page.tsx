@@ -6,14 +6,14 @@ import { useRouter } from 'next/navigation';
 import { MapPin, Search, ShoppingBag, Wallet } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import {
-  menuProducts,
   categories,
-  currentEvent,
   mockWalletBalance,
   getFichasFromOrder,
   isFichaValid,
   mockAvailableFichas,
 } from '@/lib/mock-data';
+import { useEventStore } from '@/lib/event-store';
+import { useActiveEvent } from '@/lib/event-context';
 import { productMatchesSearch } from '@/lib/menu-utils';
 import { MenuItemCard } from '@/components/menu-item-card';
 import { CategoryPills } from '@/components/category-pills';
@@ -24,6 +24,10 @@ import { cn } from '@/lib/utils';
 function CardapioContent() {
   const router = useRouter();
   const { itemCount, orders } = useCart();
+  const { activeEvent, activeEventId } = useActiveEvent();
+  const { getMenuProductsByEventId } = useEventStore();
+  const eventId = activeEventId ?? '1';
+  const menuProducts = getMenuProductsByEventId(eventId);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,10 +68,10 @@ function CardapioContent() {
                 🎪
               </div>
               <div className="min-w-0">
-                <h1 className="font-bold text-foreground truncate">{currentEvent.name}</h1>
+                <h1 className="font-bold text-foreground truncate">{activeEvent?.name ?? 'Cardápio'}</h1>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{currentEvent.location}</span>
+                  <span className="truncate">{activeEvent?.location}</span>
                 </div>
               </div>
             </div>

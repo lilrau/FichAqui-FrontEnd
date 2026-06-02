@@ -1,0 +1,107 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ChevronDown, LogOut } from 'lucide-react';
+import { useEventStore } from '@/lib/event-store';
+import { useActiveEvent } from '@/lib/event-context';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+export default function AdminEventLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const params = useParams();
+  const router = useRouter();
+  const eventId = params.eventId as string;
+  const { events, getEventById } = useEventStore();
+  const { setActiveEventId } = useActiveEvent();
+  const event = getEventById(eventId);
+
+  useEffect(() => {
+    if (event) setActiveEventId(eventId);
+  }, [event, eventId, setActiveEventId]);
+
+  useEffect(() => {
+    if (!event && events.length > 0) {
+      router.replace('/admin');
+    }
+  }, [event, events.length, router]);
+
+  if (!event) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Carregando evento…
+      </div>
+    );
+  }
+
+  const otherEvents = events.filter((e) => e.id !== eventId);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header
+        className="sticky top-0 z-30 text-primary-foreground"
+        style={{ backgroundColor: event.primaryColor }}
+      >
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="h-10 w-10 shrink-0 rounded-xl bg-primary-foreground/20 flex items-center justify-center text-xl">
+                {eventId === '2' ? '🎄' : '🎪'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm opacity-80 truncate">Painel Administrativo</p>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-1 font-bold text-left max-w-[200px]">
+                    <span className="truncate">{event.name}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-80" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    {otherEvents.map((e) => (
+                      <DropdownMenuItem key={e.id} asChild>
+                        <Link href={`/admin/${e.id}`}>{e.name}</Link>
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin">Todos os eventos</Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-sm opacity-90">
+            <span
+              className={
+                event.status === 'active'
+                  ? 'h-2 w-2 rounded-full bg-green-300'
+                  : 'h-2 w-2 rounded-full bg-gray-300'
+              }
+            />
+            <span className="capitalize">{event.status}</span>
+            <span>•</span>
+            <span>
+              {event.startTime} – {event.endTime}
+            </span>
+          </div>
+        </div>
+      </header>
+      {children}
+    </div>
+  );
+}
