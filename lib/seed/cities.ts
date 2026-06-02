@@ -4,8 +4,10 @@ export interface City {
   state: string;
 }
 
+export const DEFAULT_CITY_ID = 'curitiba-pr';
+
 export const seedCities: City[] = [
-  { id: 'curitiba-pr', name: 'Curitiba', state: 'PR' },
+  { id: DEFAULT_CITY_ID, name: 'Curitiba', state: 'PR' },
   { id: 'londrina-pr', name: 'Londrina', state: 'PR' },
   { id: 'sao-paulo-sp', name: 'São Paulo', state: 'SP' },
 ];

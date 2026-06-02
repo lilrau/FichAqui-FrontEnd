@@ -9,7 +9,7 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { seedCities, type City } from '@/lib/seed/cities';
+import { DEFAULT_CITY_ID, seedCities, type City } from '@/lib/seed/cities';
 import { loadJson, saveJson } from '@/lib/storage';
 
 const SELECTED_CITY_KEY = 'event-app:selected-city';
@@ -33,6 +33,8 @@ export function CityProvider({ children }: { children: ReactNode }) {
     const stored = loadJson<string | null>(SELECTED_CITY_KEY, null);
     if (stored && seedCities.some((c) => c.id === stored)) {
       setSelectedCityIdState(stored);
+    } else {
+      setSelectedCityIdState(DEFAULT_CITY_ID);
     }
     setHydrated(true);
   }, []);

@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR" className="bg-background">
+    <html lang="pt-BR" className="bg-background" suppressHydrationWarning>
       <body className={`${nunito.variable} font-sans antialiased min-h-screen`}>
         <EventProviders>{children}</EventProviders>
         {process.env.NODE_ENV === 'production' && <Analytics />}

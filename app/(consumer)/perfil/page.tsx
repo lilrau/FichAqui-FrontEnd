@@ -11,7 +11,9 @@ import {
   ChevronRight,
   KeyRound,
   CreditCard,
+  Palette,
 } from 'lucide-react';
+import { ThemeSelector } from '@/components/theme-selector';
 import { useActiveEvent } from '@/lib/event-context';
 
 const mockUser = {
@@ -65,6 +67,22 @@ export default function PerfilPage() {
               <p className="text-sm font-medium text-foreground">{mockUser.phone}</p>
             </div>
           </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="rounded-2xl bg-card border border-border px-4 py-4 space-y-4"
+        >
+          <div className="flex items-center gap-3">
+            <Palette className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Tema</p>
+              <p className="text-xs text-muted-foreground">Aparência do aplicativo</p>
+            </div>
+          </div>
+          <ThemeSelector />
         </motion.div>
 
         <motion.div
