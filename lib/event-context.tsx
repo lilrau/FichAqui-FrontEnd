@@ -10,105 +10,96 @@ import React, {
   type ReactNode,
 } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type { Event } from '@/lib/mock-data';
+import {
+  DEFAULT_EVENT_ID,
+  parseEventIdFromPath,
+  readStoredActiveEventId,
+  writeStoredActiveEventId,
+} from '@/lib/event-routing';
 import { useEventStore } from '@/lib/event-store';
-
-const ACTIVE_EVENT_KEY = 'event-app:active-event';
+import type { Event } from '@/lib/types/event-domain';
 
 interface EventContextType {
-  activeEventId: string | null;
+  hydrated: boolean;
+  activeEventId: string;
   activeEvent: Event | null;
   setActiveEventId: (id: string | null) => void;
 }
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
 
-function readStoredActiveEventId(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem(ACTIVE_EVENT_KEY);
-  } catch {
-    return null;
+function resolveActiveEventId(
+  adminEventId: string | null,
+  queryEventId: string | null,
+  storedId: string | null,
+  isEventValid: (id: string) => boolean
+): string {
+  const candidates = [adminEventId, queryEventId, storedId, DEFAULT_EVENT_ID];
+  for (const id of candidates) {
+    if (id && isEventValid(id)) return id;
   }
-}
-
-function writeStoredActiveEventId(id: string | null) {
-  if (typeof window === 'undefined') return;
-  try {
-    if (id) localStorage.setItem(ACTIVE_EVENT_KEY, id);
-    else localStorage.removeItem(ACTIVE_EVENT_KEY);
-  } catch {
-    // ignore
-  }
+  return DEFAULT_EVENT_ID;
 }
 
 export function EventProvider({ children }: { children: ReactNode }) {
-  const { getEventById } = useEventStore();
+  const { getEventById, hydrated: storeHydrated } = useEventStore();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
 
+  const adminEventId = parseEventIdFromPath(pathname);
   const eventFromQuery = searchParams.get('event');
-  const adminEventMatch = pathname?.match(/^\/admin\/([^/]+)/);
-  const adminEventId =
-    adminEventMatch &&
-    adminEventMatch[1] !== 'novo' &&
-    adminEventMatch[1] !== 'config'
-      ? adminEventMatch[1]
-      : null;
 
-  const [activeEventId, setActiveEventIdState] = useState<string | null>(null);
+  const [activeEventId, setActiveEventIdState] = useState(DEFAULT_EVENT_ID);
   const [hydrated, setHydrated] = useState(false);
 
+  const isEventValid = useCallback(
+    (id: string) => Boolean(getEventById(id)),
+    [getEventById]
+  );
+
   useEffect(() => {
-    const fromUrl = adminEventId ?? eventFromQuery ?? readStoredActiveEventId();
-    if (fromUrl && getEventById(fromUrl)) {
-      setActiveEventIdState(fromUrl);
-    } else if (!fromUrl) {
-      setActiveEventIdState('1');
-    }
+    if (!storeHydrated) return;
+    const resolved = resolveActiveEventId(
+      adminEventId,
+      eventFromQuery,
+      readStoredActiveEventId(),
+      isEventValid
+    );
+    setActiveEventIdState(resolved);
+    writeStoredActiveEventId(resolved);
     setHydrated(true);
-  }, [adminEventId, eventFromQuery, getEventById]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (adminEventId && getEventById(adminEventId)) {
-      setActiveEventIdState(adminEventId);
-      writeStoredActiveEventId(adminEventId);
-    }
-  }, [adminEventId, getEventById, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated || adminEventId) return;
-    if (eventFromQuery && getEventById(eventFromQuery)) {
-      setActiveEventIdState(eventFromQuery);
-      writeStoredActiveEventId(eventFromQuery);
-    }
-  }, [eventFromQuery, adminEventId, getEventById, hydrated]);
+  }, [storeHydrated, adminEventId, eventFromQuery, isEventValid]);
 
   const setActiveEventId = useCallback(
     (id: string | null) => {
-      if (id && !getEventById(id)) return;
-      setActiveEventIdState(id);
-      writeStoredActiveEventId(id);
-      if (id && pathname?.startsWith('/admin/') && adminEventId) {
+      const nextId = id && isEventValid(id) ? id : DEFAULT_EVENT_ID;
+      setActiveEventIdState(nextId);
+      writeStoredActiveEventId(nextId);
+
+      if (pathname?.startsWith('/admin/') && adminEventId) {
         const suffix = pathname.replace(/^\/admin\/[^/]+/, '') || '';
-        router.push(`/admin/${id}${suffix}`);
+        router.push(`/admin/${nextId}${suffix}`);
       }
     },
-    [getEventById, pathname, adminEventId, router]
+    [isEventValid, pathname, adminEventId, router]
   );
 
   const activeEvent = useMemo(
-    () => (activeEventId ? getEventById(activeEventId) ?? null : null),
+    () => getEventById(activeEventId) ?? null,
     [activeEventId, getEventById]
   );
 
   const primaryColor = activeEvent?.primaryColor ?? '#d97706';
 
   const value = useMemo(
-    () => ({ activeEventId, activeEvent, setActiveEventId }),
-    [activeEventId, activeEvent, setActiveEventId]
+    () => ({
+      hydrated,
+      activeEventId,
+      activeEvent,
+      setActiveEventId,
+    }),
+    [hydrated, activeEventId, activeEvent, setActiveEventId]
   );
 
   return (
@@ -124,6 +115,18 @@ export function useActiveEvent() {
     throw new Error('useActiveEvent must be used within EventProvider');
   }
   return ctx;
+}
+
+export function useEventId(): string {
+  const { activeEventId, hydrated } = useActiveEvent();
+  const { hydrated: storeHydrated } = useEventStore();
+  return storeHydrated && hydrated ? activeEventId : DEFAULT_EVENT_ID;
+}
+
+export function useAppReady(): boolean {
+  const { hydrated } = useActiveEvent();
+  const { hydrated: storeHydrated } = useEventStore();
+  return hydrated && storeHydrated;
 }
 
 export function useRequireEvent() {

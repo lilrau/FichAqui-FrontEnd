@@ -8,8 +8,14 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
-import { MenuItem, Order, generateOrderNumber, generateQRCode } from '@/lib/mock-data';
-import { useActiveEvent } from '@/lib/event-context';
+import { useEventId } from '@/lib/event-context';
+import { useEventStore } from '@/lib/event-store';
+import {
+  generateOrderNumber,
+  generateQRCode,
+  type MenuItem,
+  type Order,
+} from '@/lib/types/event-domain';
 
 interface CartItem {
   item: MenuItem;
@@ -33,19 +39,17 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 type CartsByEvent = Record<string, CartItem[]>;
-type OrdersByEvent = Record<string, Order[]>;
 type CurrentOrderByEvent = Record<string, Order | null>;
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { activeEventId } = useActiveEvent();
-  const eventId = activeEventId ?? '1';
+  const eventId = useEventId();
+  const { getOrdersByEventId, addOrder } = useEventStore();
 
   const [cartsByEvent, setCartsByEvent] = useState<CartsByEvent>({});
-  const [ordersByEvent, setOrdersByEvent] = useState<OrdersByEvent>({});
   const [currentOrderByEvent, setCurrentOrderByEvent] = useState<CurrentOrderByEvent>({});
 
   const items = cartsByEvent[eventId] ?? [];
-  const orders = ordersByEvent[eventId] ?? [];
+  const orders = getOrdersByEventId(eventId);
   const currentOrder = currentOrderByEvent[eventId] ?? null;
 
   const setItemsForEvent = useCallback(
@@ -121,15 +125,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       qrCode: generateQRCode(),
     };
 
-    setOrdersByEvent((prev) => ({
-      ...prev,
-      [eventId]: [newOrder, ...(prev[eventId] ?? [])],
-    }));
+    addOrder(newOrder);
     setCurrentOrder(newOrder);
     clearCart();
 
     return newOrder;
-  }, [items, total, clearCart, eventId, setCurrentOrder]);
+  }, [items, total, clearCart, eventId, setCurrentOrder, addOrder]);
 
   const value = useMemo(
     () => ({

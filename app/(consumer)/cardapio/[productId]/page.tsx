@@ -6,7 +6,7 @@ import { ChevronLeft, Flame, ShoppingBag } from 'lucide-react';
 import { getProductById } from '@/lib/menu-utils';
 import { useCart } from '@/lib/cart-context';
 import { useEventStore } from '@/lib/event-store';
-import { useActiveEvent } from '@/lib/event-context';
+import { useEventId } from '@/lib/event-context';
 import { ProductPriceDisplay } from '@/components/product-price-display';
 import { MenuVariantRow } from '@/components/menu-item-card';
 import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
@@ -20,10 +20,10 @@ export default function ProductPage({ params }: ProductPageProps) {
   const { productId } = use(params);
   const router = useRouter();
   const { itemCount } = useCart();
-  const { activeEventId } = useActiveEvent();
+  const eventId = useEventId();
   const { getMenuProductsByEventId } = useEventStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const menuProducts = getMenuProductsByEventId(activeEventId ?? '1');
+  const menuProducts = getMenuProductsByEventId(eventId);
   const product = getProductById(menuProducts, productId);
 
   useEffect(() => {

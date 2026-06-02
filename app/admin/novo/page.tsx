@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Save } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
-import type { Event } from '@/lib/mock-data';
+import type { Event } from '@/lib/types/event-domain';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -21,6 +21,7 @@ const defaultEvent: Omit<Event, 'id'> = {
   capacity: 200,
   primaryColor: '#d97706',
   code: '',
+  icon: '🎪',
 };
 
 export default function NovoEventoPage() {

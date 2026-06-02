@@ -9,53 +9,51 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
+import { buildMenuItemsFromProducts } from '@/lib/catalog/menu-catalog';
 import {
-  type Event,
-  type MenuProduct,
-  type Stall,
+  createDefaultMenuProductsForEvent,
+  createDefaultStallsForEvent,
+  parseStoredOrders,
   seedEvents,
   seedMenuProducts,
+  seedOrders,
   seedStalls,
-} from '@/lib/mock-data';
+} from '@/lib/seed';
+import { loadJson, saveJson } from '@/lib/storage';
+import type {
+  Event,
+  MenuItem,
+  MenuProduct,
+  Order,
+  OrderStatus,
+  Stall,
+} from '@/lib/types/event-domain';
 
 const EVENTS_KEY = 'event-app:events';
 const STALLS_KEY = 'event-app:stalls';
 const PRODUCTS_KEY = 'event-app:products';
-
-function loadJson<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveJson(key: string, value: unknown) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore quota / private mode
-  }
-}
+const ORDERS_KEY = 'event-app:orders';
 
 export type CreateEventInput = Omit<Event, 'id'> & { id?: string };
 
 interface EventStoreContextType {
+  hydrated: boolean;
   events: Event[];
   stalls: Stall[];
   menuProducts: MenuProduct[];
+  orders: Order[];
   getEventById: (id: string) => Event | undefined;
   getStallsByEventId: (eventId: string) => Stall[];
   getMenuProductsByEventId: (eventId: string) => MenuProduct[];
+  getMenuItemsByEventId: (eventId: string) => MenuItem[];
+  getOrdersByEventId: (eventId: string) => Order[];
   createEvent: (input: CreateEventInput) => Event;
   updateEvent: (id: string, patch: Partial<Event>) => void;
   addStall: (eventId: string, stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }) => Stall;
   updateStall: (stallId: string, patch: Partial<Stall>) => void;
   deleteStall: (stallId: string) => void;
+  addOrder: (order: Order) => Order;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
 }
 
 const EventStoreContext = createContext<EventStoreContextType | undefined>(undefined);
@@ -64,12 +62,14 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<Event[]>(seedEvents);
   const [stalls, setStalls] = useState<Stall[]>(seedStalls);
   const [menuProducts, setMenuProducts] = useState<MenuProduct[]>(seedMenuProducts);
+  const [orders, setOrders] = useState<Order[]>(seedOrders);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setEvents(loadJson(EVENTS_KEY, seedEvents));
     setStalls(loadJson(STALLS_KEY, seedStalls));
     setMenuProducts(loadJson(PRODUCTS_KEY, seedMenuProducts));
+    setOrders(parseStoredOrders(loadJson(ORDERS_KEY, seedOrders)));
     setHydrated(true);
   }, []);
 
@@ -88,6 +88,11 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     saveJson(PRODUCTS_KEY, menuProducts);
   }, [menuProducts, hydrated]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    saveJson(ORDERS_KEY, orders);
+  }, [orders, hydrated]);
+
   const getEventById = useCallback(
     (id: string) => events.find((e) => e.id === id),
     [events]
@@ -103,10 +108,36 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     [menuProducts]
   );
 
+  const getMenuItemsByEventId = useCallback(
+    (eventId: string) => buildMenuItemsFromProducts(getMenuProductsByEventId(eventId)),
+    [getMenuProductsByEventId]
+  );
+
+  const getOrdersByEventId = useCallback(
+    (eventId: string) =>
+      orders
+        .filter((o) => o.eventId === eventId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+    [orders]
+  );
+
   const createEvent = useCallback((input: CreateEventInput) => {
     const id = input.id ?? `event-${Date.now()}`;
-    const event: Event = { ...input, id } as Event;
+    const event: Event = {
+      icon: '🎪',
+      ...input,
+      id,
+    } as Event;
+
+    const defaultStalls = createDefaultStallsForEvent(id);
+    const defaultProducts = createDefaultMenuProductsForEvent(
+      id,
+      defaultStalls[0].id
+    );
+
     setEvents((prev) => [...prev, event]);
+    setStalls((prev) => [...prev, ...defaultStalls]);
+    setMenuProducts((prev) => [...prev, ...defaultProducts]);
     return event;
   }, []);
 
@@ -145,32 +176,55 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     setStalls((prev) => prev.filter((s) => s.id !== stallId));
   }, []);
 
+  const addOrder = useCallback((order: Order) => {
+    setOrders((prev) => [order, ...prev]);
+    return order;
+  }, []);
+
+  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+    );
+  }, []);
+
   const value = useMemo(
     () => ({
+      hydrated,
       events,
       stalls,
       menuProducts,
+      orders,
       getEventById,
       getStallsByEventId,
       getMenuProductsByEventId,
+      getMenuItemsByEventId,
+      getOrdersByEventId,
       createEvent,
       updateEvent,
       addStall,
       updateStall,
       deleteStall,
+      addOrder,
+      updateOrderStatus,
     }),
     [
+      hydrated,
       events,
       stalls,
       menuProducts,
+      orders,
       getEventById,
       getStallsByEventId,
       getMenuProductsByEventId,
+      getMenuItemsByEventId,
+      getOrdersByEventId,
       createEvent,
       updateEvent,
       addStall,
       updateStall,
       deleteStall,
+      addOrder,
+      updateOrderStatus,
     ]
   );
 

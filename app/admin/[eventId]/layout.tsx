@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
-import { useActiveEvent } from '@/lib/event-context';
+import { useAppReady } from '@/lib/event-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,24 +21,38 @@ export default function AdminEventLayout({
   const params = useParams();
   const router = useRouter();
   const eventId = params.eventId as string;
-  const { events, getEventById } = useEventStore();
-  const { setActiveEventId } = useActiveEvent();
+  const { events, getEventById, hydrated } = useEventStore();
+  const ready = useAppReady();
   const event = getEventById(eventId);
 
   useEffect(() => {
-    if (event) setActiveEventId(eventId);
-  }, [event, eventId, setActiveEventId]);
-
-  useEffect(() => {
+    if (!hydrated) return;
     if (!event && events.length > 0) {
       router.replace('/admin');
     }
-  }, [event, events.length, router]);
+  }, [event, events.length, router, hydrated]);
 
-  if (!event) {
+  if (!ready || !hydrated) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
         Carregando evento…
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-lg font-semibold text-foreground">Evento não encontrado</p>
+        <p className="text-sm text-muted-foreground">
+          O evento &quot;{eventId}&quot; não existe ou foi removido.
+        </p>
+        <Link
+          href="/admin"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Ver todos os eventos
+        </Link>
       </div>
     );
   }
@@ -55,7 +69,7 @@ export default function AdminEventLayout({
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-3">
               <div className="h-10 w-10 shrink-0 rounded-xl bg-primary-foreground/20 flex items-center justify-center text-xl">
-                {eventId === '2' ? '🎄' : '🎪'}
+                {event.icon ?? '🎪'}
               </div>
               <div className="min-w-0">
                 <p className="text-sm opacity-80 truncate">Painel Administrativo</p>

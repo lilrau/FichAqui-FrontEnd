@@ -13,7 +13,7 @@ import {
   mockAvailableFichas,
 } from '@/lib/mock-data';
 import { useEventStore } from '@/lib/event-store';
-import { useActiveEvent } from '@/lib/event-context';
+import { useActiveEvent, useEventId } from '@/lib/event-context';
 import { productMatchesSearch } from '@/lib/menu-utils';
 import { MenuItemCard } from '@/components/menu-item-card';
 import { CategoryPills } from '@/components/category-pills';
@@ -24,9 +24,9 @@ import { cn } from '@/lib/utils';
 function CardapioContent() {
   const router = useRouter();
   const { itemCount, orders } = useCart();
-  const { activeEvent, activeEventId } = useActiveEvent();
+  const { activeEvent } = useActiveEvent();
+  const eventId = useEventId();
   const { getMenuProductsByEventId } = useEventStore();
-  const eventId = activeEventId ?? '1';
   const menuProducts = getMenuProductsByEventId(eventId);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -65,7 +65,7 @@ function CardapioContent() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="h-10 w-10 shrink-0 rounded-xl bg-primary flex items-center justify-center text-xl">
-                🎪
+                {activeEvent?.icon ?? '🎪'}
               </div>
               <div className="min-w-0">
                 <h1 className="font-bold text-foreground truncate">{activeEvent?.name ?? 'Cardápio'}</h1>

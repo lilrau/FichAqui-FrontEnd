@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useEventStore } from '@/lib/event-store';
 import { useActiveEvent } from '@/lib/event-context';
+import { formatEventDate } from '@/lib/event-routing';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -99,7 +100,7 @@ export default function LoginPage() {
                   </div>
                   <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
                     <Calendar className="h-4 w-4 text-primary" />
-                    <span>24 de Junho</span>
+                    <span>{displayEvent ? formatEventDate(displayEvent.date) : ''}</span>
                   </div>
                   <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm">
                     <Clock className="h-4 w-4 text-primary" />

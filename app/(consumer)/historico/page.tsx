@@ -4,91 +4,12 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { getFichasFromOrder, getMenuItemsByEventId, Order } from '@/lib/mock-data';
-import { useActiveEvent } from '@/lib/event-context';
+import { getFichasFromOrder } from '@/lib/mock-data';
 import { statusConfig } from '@/lib/order-status-config';
 import { FichaCard } from '@/components/ficha-card';
 
-function menuItemById(eventId: string, id: string) {
-  const items = getMenuItemsByEventId(eventId);
-  const item = items.find((entry) => entry.id === id);
-  if (!item) throw new Error(`Menu item not found: ${id}`);
-  return item;
-}
-
-const mockOrdersEvent1: Order[] = [
-  {
-    id: 'order-1',
-    eventId: '1',
-    number: '1234',
-    items: [
-      { item: menuItemById('1', 'pastel-carne'), quantity: 1 },
-      { item: menuItemById('1', 'milho-verde-unidade'), quantity: 1 },
-    ],
-    total: 14,
-    status: 'available',
-    createdAt: new Date(Date.now() - 1000 * 60 * 5),
-    qrCode: 'QR-12345',
-  },
-  {
-    id: 'order-2',
-    eventId: '1',
-    number: '1189',
-    items: [{ item: menuItemById('1', 'cachorro-quente-unidade'), quantity: 1 }],
-    total: 10,
-    status: 'delivered',
-    createdAt: new Date(Date.now() - 1000 * 60 * 30),
-    qrCode: 'QR-67890',
-  },
-  {
-    id: 'order-3',
-    eventId: '1',
-    number: '1156',
-    items: [
-      { item: menuItemById('1', 'espetinho-carne-unidade'), quantity: 2 },
-      { item: menuItemById('1', 'quentao-copo'), quantity: 1 },
-    ],
-    total: 30,
-    status: 'delivered',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60),
-    qrCode: 'QR-11111',
-  },
-];
-
-const mockOrdersEvent2: Order[] = [
-  {
-    id: 'order-n1',
-    eventId: '2',
-    number: '2101',
-    items: [{ item: menuItemById('2', 'panetone-fatia'), quantity: 2 }],
-    total: 16,
-    status: 'available',
-    createdAt: new Date(Date.now() - 1000 * 60 * 10),
-    qrCode: 'QR-NATAL-1',
-  },
-  {
-    id: 'order-n2',
-    eventId: '2',
-    number: '2098',
-    items: [{ item: menuItemById('2', 'chocolate-quente-copo'), quantity: 1 }],
-    total: 7,
-    status: 'delivered',
-    createdAt: new Date(Date.now() - 1000 * 60 * 45),
-    qrCode: 'QR-NATAL-2',
-  },
-];
-
-const mockOrdersByEvent: Record<string, Order[]> = {
-  '1': mockOrdersEvent1,
-  '2': mockOrdersEvent2,
-};
-
 export default function HistoricoPage() {
-  const { orders: cartOrders } = useCart();
-  const { activeEventId } = useActiveEvent();
-  const eventId = activeEventId ?? '1';
-  const mockOrders = mockOrdersByEvent[eventId] ?? [];
-  const orders = cartOrders.length > 0 ? cartOrders : mockOrders;
+  const { orders } = useCart();
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const formatTime = (date: Date) => {
