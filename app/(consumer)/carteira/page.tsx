@@ -9,6 +9,7 @@ import { useCart } from '@/lib/cart-context';
 import { Ficha, mockWalletBalance } from '@/lib/mock-data';
 import { FichaCard } from '@/components/ficha-card';
 import { useConsumerScope, type ConsumerScope } from '@/lib/consumer-scope';
+import { useActiveEvent } from '@/lib/event-context';
 import { isFichaExcludedFromEvent, resolveWalletFichas } from '@/lib/wallet-fichas';
 import { cn } from '@/lib/utils';
 
@@ -109,9 +110,11 @@ function TransactionsList() {
 function FichasList({
   fichas,
   scope,
+  eventName,
 }: {
   fichas: Ficha[];
   scope: ConsumerScope;
+  eventName?: string;
 }) {
   if (fichas.length === 0) {
     return (
@@ -138,7 +141,8 @@ function FichasList({
         >
           <FichaCard
             ficha={ficha}
-            excludedFromEvent={isFichaExcludedFromEvent(ficha.id, scope)}
+            excludedFromEvent={isFichaExcludedFromEvent(ficha, scope)}
+            eventName={eventName}
           />
         </motion.div>
       ))}
@@ -154,6 +158,7 @@ function CarteiraContent() {
 
   const { orders } = useCart();
   const scope = useConsumerScope();
+  const { activeEvent } = useActiveEvent();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [[tabIndex, direction], setTabPosition] = useState([initialTabIndex, 0]);
 
@@ -234,7 +239,11 @@ function CarteiraContent() {
                 {activeTab === 'movimentacoes' ? (
                   <TransactionsList />
                 ) : (
-                  <FichasList fichas={availableFichas} scope={scope} />
+                  <FichasList
+                    fichas={availableFichas}
+                    scope={scope}
+                    eventName={activeEvent?.name}
+                  />
                 )}
               </motion.div>
             </AnimatePresence>

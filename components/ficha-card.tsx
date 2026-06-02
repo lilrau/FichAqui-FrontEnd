@@ -11,12 +11,14 @@ interface FichaCardProps {
   ficha: Ficha;
   compact?: boolean;
   excludedFromEvent?: boolean;
+  eventName?: string;
 }
 
 export function FichaCard({
   ficha,
   compact = false,
   excludedFromEvent = false,
+  eventName,
 }: FichaCardProps) {
   const status = statusConfig[ficha.status];
   const StatusIcon = status.icon;
@@ -38,7 +40,7 @@ export function FichaCard({
         {excludedFromEvent ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2.5 py-1 text-xs font-semibold shrink-0 text-yellow-700 dark:text-yellow-400">
             <AlertCircle className="h-3 w-3" />
-            Não faz parte desse evento
+            De outro lugar
           </span>
         ) : (
           <span
@@ -53,6 +55,13 @@ export function FichaCard({
           </span>
         )}
       </div>
+
+      {excludedFromEvent && eventName && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Esta ficha é de outro evento ou estabelecimento e não pode ser utilizada em{' '}
+          <span className="font-medium text-foreground">{eventName}</span>
+        </p>
+      )}
 
       {showQr && (
         <>
