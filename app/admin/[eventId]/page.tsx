@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Clock,
   Package,
-  Plus,
   Store,
   TrendingUp,
   Users,

@@ -8,7 +8,6 @@ import {
   MapPin,
   Image,
   Users,
-  Palette,
   Eye,
   Save,
   Globe,

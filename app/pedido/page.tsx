@@ -1,36 +1,90 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Check, PartyPopper } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
+import { mockSavedPaymentCards } from '@/lib/mock-data';
 import { OrderStatus, OrderQRCode } from '@/components/order-status';
+import { CardBrandLogo } from '@/components/card-brand-logo';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/menu-item-card';
+import {
+  PaymentFlowOverlay,
+  type PaymentFlowPhase,
+} from '@/components/payment-flow-overlay';
+import { cn } from '@/lib/utils';
+
+type PaymentMethod = 'pix' | 'card';
+
+const PAYMENT_OPTIONS: { id: PaymentMethod; label: string; hint?: string }[] = [
+  { id: 'pix', label: 'PIX' },
+  {
+    id: 'card',
+    label: 'Cartão de crédito',
+    hint: 'Cobrança no crédito do cartão selecionado',
+  },
+];
+
+const paymentSelectTransition = {
+  type: 'spring' as const,
+  stiffness: 400,
+  damping: 30,
+};
 
 function PedidoContent() {
   const router = useRouter();
   const eventId = useEventId();
-  const { items, total, createOrder, currentOrder } = useCart();
+  const { items, total, createOrder, currentOrder, setCurrentOrder } = useCart();
   const cardapioHref = buildConsumerEventHref('/cardapio', eventId);
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [paymentFlow, setPaymentFlow] = useState<PaymentFlowPhase | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
+  const defaultCard =
+    mockSavedPaymentCards.find((card) => card.isDefault) ??
+    mockSavedPaymentCards[0];
+  const [selectedCardId, setSelectedCardId] = useState(defaultCard?.id ?? '');
 
   const handleConfirm = () => {
     setIsConfirming(true);
-    
-    // Simular processamento
-    setTimeout(() => {
-      createOrder();
-      setShowSuccess(true);
-    }, 1500);
+    setPaymentFlow('processing');
+
+    window.setTimeout(() => {
+      const approved = Math.random() < 0.5;
+      setPaymentFlow(approved ? 'success' : 'error');
+    }, 1800);
   };
 
-  // Se já tem um pedido atual, mostrar status
-  if (currentOrder || showSuccess) {
+  const handleBackToPayment = () => {
+    setPaymentFlow(null);
+    setIsConfirming(false);
+  };
+
+  const handlePaymentSuccessFinished = () => {
+    createOrder();
+    setShowSuccess(true);
+    setPaymentFlow(null);
+    setIsConfirming(false);
+  };
+
+  if (paymentFlow) {
+    return (
+      <PaymentFlowOverlay
+        phase={paymentFlow}
+        onBackToPayment={handleBackToPayment}
+        onSuccessFinished={handlePaymentSuccessFinished}
+      />
+    );
+  }
+
+  const hasNewCheckout = items.length > 0;
+
+  // Pedido concluído — só quando o carrinho está vazio (nova compra usa o checkout)
+  if ((currentOrder || showSuccess) && !hasNewCheckout) {
     return (
       <div className="min-h-screen bg-background">
         {/* Header */}
@@ -111,7 +165,11 @@ function PedidoContent() {
 
               {/* Back Button */}
               <Button
-                onClick={() => router.push(cardapioHref)}
+                onClick={() => {
+                  setCurrentOrder(null);
+                  setShowSuccess(false);
+                  router.push(cardapioHref);
+                }}
                 variant="outline"
                 className="w-full h-14 rounded-xl text-lg"
               >
@@ -195,22 +253,123 @@ function PedidoContent() {
             {/* Payment Method (mock) */}
             <div className="rounded-2xl bg-card p-4 shadow-md border border-border">
               <h3 className="font-bold text-card-foreground mb-3">Forma de pagamento</h3>
-              <div className="space-y-2">
-                {['PIX', 'Dinheiro', 'Cartão'].map((method, index) => (
-                  <label
-                    key={method}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-secondary cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      defaultChecked={index === 0}
-                      className="h-5 w-5 accent-primary"
-                    />
-                    <span className="font-medium text-foreground">{method}</span>
-                  </label>
-                ))}
-              </div>
+              <LayoutGroup id="pedido-payment-method">
+                <div className="space-y-2">
+                  {PAYMENT_OPTIONS.map((option) => {
+                    const selected = paymentMethod === option.id;
+
+                    return (
+                      <label
+                        key={option.id}
+                        className={cn(
+                          'relative flex cursor-pointer items-center gap-3 rounded-xl p-3',
+                          !selected && 'bg-secondary'
+                        )}
+                      >
+                        {selected && (
+                          <motion.div
+                            layoutId="pedido-payment-method-active"
+                            className="absolute inset-0 rounded-xl border border-primary bg-primary/5"
+                            transition={paymentSelectTransition}
+                          />
+                        )}
+                        <input
+                          type="radio"
+                          name="payment"
+                          checked={selected}
+                          onChange={() => setPaymentMethod(option.id)}
+                          className="relative z-10 h-5 w-5 accent-primary"
+                        />
+                        <div className="relative z-10 min-w-0 flex-1">
+                          <span
+                            className={cn(
+                              'font-medium text-foreground',
+                              selected && 'text-primary'
+                            )}
+                          >
+                            {option.label}
+                          </span>
+                          {option.hint && (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {option.hint}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <AnimatePresence initial={false}>
+                  {paymentMethod === 'card' && mockSavedPaymentCards.length > 0 && (
+                    <motion.div
+                      key="saved-cards"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-3 space-y-2 border-t border-border pt-3">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Cartão de crédito para cobrança
+                        </p>
+                        <LayoutGroup id="pedido-payment-card">
+                          {mockSavedPaymentCards.map((card, index) => {
+                            const selected = selectedCardId === card.id;
+
+                            return (
+                              <motion.label
+                                key={card.id}
+                                layout
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.05, ...paymentSelectTransition }}
+                                className={cn(
+                                  'relative flex cursor-pointer items-center gap-3 rounded-xl border p-3',
+                                  !selected && 'border-border bg-background'
+                                )}
+                              >
+                                {selected && (
+                                  <motion.div
+                                    layoutId="pedido-payment-card-active"
+                                    className="absolute inset-0 rounded-xl border border-primary bg-primary/5"
+                                    transition={paymentSelectTransition}
+                                  />
+                                )}
+                                <input
+                                  type="radio"
+                                  name="payment-card"
+                                  checked={selected}
+                                  onChange={() => setSelectedCardId(card.id)}
+                                  className="relative z-10 h-5 w-5 accent-primary"
+                                />
+                                <CardBrandLogo
+                                  brand={card.brand}
+                                  className="relative z-10 h-9 w-14"
+                                />
+                                <div className="relative z-10 min-w-0 flex-1">
+                                  <p className="font-mono text-sm font-medium text-foreground">
+                                    •••• {card.lastFour}
+                                  </p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {card.holderName}
+                                  </p>
+                                </div>
+                                {card.isDefault && (
+                                  <span className="relative z-10 shrink-0 text-xs font-medium text-primary">
+                                    Padrão
+                                  </span>
+                                )}
+                              </motion.label>
+                            );
+                          })}
+                        </LayoutGroup>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </LayoutGroup>
             </div>
           </div>
         )}

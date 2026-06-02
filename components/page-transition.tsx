@@ -1,11 +1,17 @@
 'use client';
 
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, useState, type ReactNode } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigation } from '@/components/navigation-provider';
 
 const fadeTransition = { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const };
+
+/** Snapshot at mount so exiting routes keep the old page during AnimatePresence exit. */
+function FrozenRouteContent({ children }: { children: ReactNode }) {
+  const [frozen] = useState(() => children);
+  return frozen;
+}
 
 function useRouteKey(): string {
   const pathname = usePathname();
@@ -54,7 +60,7 @@ function PageTransitionInner({ children }: { children: ReactNode }) {
           transition={fadeTransition}
           className="min-h-screen"
         >
-          {children}
+          <FrozenRouteContent>{children}</FrozenRouteContent>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -63,7 +69,7 @@ function PageTransitionInner({ children }: { children: ReactNode }) {
 
 export function PageTransition({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div className="min-h-screen">{children}</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-background" aria-busy="true" />}>
       <PageTransitionInner>{children}</PageTransitionInner>
     </Suspense>
   );

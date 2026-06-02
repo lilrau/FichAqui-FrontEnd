@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import '@/app/(consumer)/metodos-pagamento/payment-card.css';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import {
-  CardNetwork,
   detectCardNetwork,
   getCardNumberGroups,
   getCardNumberLength,

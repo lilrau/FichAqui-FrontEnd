@@ -137,7 +137,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
 
   const getEventsByCityId = useCallback(
     (cityId: string, options?: { publicOnly?: boolean }) => {
-      let list = events.filter((e) => e.cityId === cityId);
+      const list = events.filter((e) => e.cityId === cityId);
       if (!options?.publicOnly) return list;
       return list.filter((e) => e.status === 'active' || e.status === 'published');
     },

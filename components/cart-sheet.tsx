@@ -15,7 +15,7 @@ interface CartSheetProps {
 }
 
 export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
-  const { items, updateQuantity, removeItem, total, clearCart } = useCart();
+  const { items, updateQuantity, total, clearCart } = useCart();
 
   return (
     <BodyPortal>

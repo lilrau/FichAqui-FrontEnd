@@ -35,7 +35,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function toSessionUser(user: AppUser): SessionUser {
-  const { password: _, ...session } = user;
+  const { password, ...session } = user;
+  void password;
   return session;
 }
 

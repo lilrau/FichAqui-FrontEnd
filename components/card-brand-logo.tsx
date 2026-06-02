@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const LOGO_SLOT_CLASS =
-  'relative flex h-10 w-[60px] shrink-0 items-center justify-end overflow-hidden';
+  'relative flex h-10 w-[60px] shrink-0 items-center justify-center';
 
 const logoMotion = {
   initial: { opacity: 0, scale: 0.82, y: 6 },
@@ -25,7 +25,7 @@ function MastercardLogo() {
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="-96 -98.908 832 593.448"
-      className="h-full max-h-10 w-auto max-w-full"
+      className="h-full w-auto max-h-full max-w-full"
       aria-hidden
     >
       <path fill="#ff5f00" d="M224.833 42.298h190.416v311.005H224.833z" />
@@ -67,7 +67,7 @@ function BrandLogoContent({
       alt={CARD_BRAND_LABELS[brand]}
       width={60}
       height={40}
-      className="max-h-10 max-w-[60px] object-contain object-right"
+      className="max-h-full max-w-full object-contain"
       onError={onImageError}
     />
   );
@@ -95,7 +95,7 @@ export function CardBrandLogo({ brand, className }: CardBrandLogoProps) {
         {brand ? (
           <motion.div
             key={motionKey}
-            className="absolute inset-0 flex items-center justify-end"
+            className="absolute inset-0 flex items-center justify-center px-0.5"
             {...logoMotion}
           >
             <BrandLogoContent
