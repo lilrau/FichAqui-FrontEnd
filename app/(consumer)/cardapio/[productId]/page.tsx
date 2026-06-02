@@ -1,8 +1,9 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Flame, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, Flame, LogIn, ShoppingBag } from 'lucide-react';
 import { getProductById } from '@/lib/menu-utils';
 import { useCart } from '@/lib/cart-context';
 import { useEventStore } from '@/lib/event-store';
@@ -11,6 +12,8 @@ import { useEventId } from '@/lib/event-context';
 import { ProductPriceDisplay } from '@/components/product-price-display';
 import { MenuVariantRow } from '@/components/menu-item-card';
 import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
 interface ProductPageProps {
@@ -20,6 +23,7 @@ interface ProductPageProps {
 export default function ProductPage({ params }: ProductPageProps) {
   const { productId } = use(params);
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const { itemCount } = useCart();
   const eventId = useEventId();
   const { getMenuProductsByEventId } = useEventStore();
@@ -54,24 +58,33 @@ export default function ProductPage({ params }: ProductPageProps) {
             Voltar
           </button>
           <h1 className="max-w-[40%] truncate font-bold text-foreground">{product.name}</h1>
-          <button
-            type="button"
-            onClick={() => setIsCartOpen(true)}
-            className="relative flex shrink-0 items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
-          >
-            <ShoppingBag className="h-4 w-4" />
-            Carrinho
-            {itemCount > 0 && (
-              <span
-                className={cn(
-                  'absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center',
-                  'rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground'
-                )}
-              >
-                {itemCount}
-              </span>
-            )}
-          </button>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="relative flex shrink-0 items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Carrinho
+              {itemCount > 0 && (
+                <span
+                  className={cn(
+                    'absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center',
+                    'rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground'
+                  )}
+                >
+                  {itemCount}
+                </span>
+              )}
+            </button>
+          ) : (
+            <Link href="/login">
+              <Button variant="outline" size="sm" className="rounded-xl h-10">
+                <LogIn className="h-4 w-4 mr-1" />
+                Entrar
+              </Button>
+            </Link>
+          )}
         </div>
       </header>
 

@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { Home, Wallet, UtensilsCrossed, Clock, User, type LucideIcon } from 'lucide-react';
 import { useNavigation } from '@/components/navigation-provider';
+import { useAuth } from '@/lib/auth-context';
 import { buildConsumerEventHref, useConsumerScope } from '@/lib/consumer-scope';
 import { useActiveEvent } from '@/lib/event-context';
 import { cn } from '@/lib/utils';
@@ -26,25 +27,35 @@ const homeTabs: NavTab[] = [
   { href: '/perfil', label: 'Perfil', icon: User },
 ];
 
+const AUTH_ONLY_LABELS = new Set(['Carteira', 'Histórico', 'Perfil']);
+
 function useNavTabs(variant: 'event' | 'home'): NavTab[] {
   const { activeEventId } = useActiveEvent();
+  const { isAuthenticated, hydrated } = useAuth();
 
+  let tabs: NavTab[];
   if (variant === 'home' || !activeEventId) {
-    return homeTabs;
+    tabs = homeTabs;
+  } else {
+    tabs = [
+      inicioTab,
+      { href: buildConsumerEventHref('/carteira', activeEventId), label: 'Carteira', icon: Wallet },
+      {
+        href: buildConsumerEventHref('/cardapio', activeEventId),
+        label: 'Cardápio',
+        icon: UtensilsCrossed,
+        matchPrefix: true,
+      },
+      { href: buildConsumerEventHref('/historico', activeEventId), label: 'Histórico', icon: Clock },
+      { href: buildConsumerEventHref('/perfil', activeEventId), label: 'Perfil', icon: User },
+    ];
   }
 
-  return [
-    inicioTab,
-    { href: buildConsumerEventHref('/carteira', activeEventId), label: 'Carteira', icon: Wallet },
-    {
-      href: buildConsumerEventHref('/cardapio', activeEventId),
-      label: 'Cardápio',
-      icon: UtensilsCrossed,
-      matchPrefix: true,
-    },
-    { href: buildConsumerEventHref('/historico', activeEventId), label: 'Histórico', icon: Clock },
-    { href: buildConsumerEventHref('/perfil', activeEventId), label: 'Perfil', icon: User },
-  ];
+  if (hydrated && !isAuthenticated) {
+    return tabs.filter((tab) => !AUTH_ONLY_LABELS.has(tab.label));
+  }
+
+  return tabs;
 }
 
 function useIsNavActive() {
@@ -85,7 +96,7 @@ function BottomNavBar({ variant = 'event' }: { variant?: 'event' | 'home' }) {
   return (
     <LayoutGroup id="bottom-nav">
       <nav
-        className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-md pb-4"
+        className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-md pb-2"
         aria-label="Navegação principal"
       >
         <motion.div

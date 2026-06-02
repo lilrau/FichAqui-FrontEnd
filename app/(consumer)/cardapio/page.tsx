@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { MapPin, Search, ShoppingBag, Wallet } from 'lucide-react';
+import { LogIn, MapPin, Search, ShoppingBag, Wallet } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import {
   categories,
@@ -19,11 +20,14 @@ import { productMatchesSearch } from '@/lib/menu-utils';
 import { MenuItemCard } from '@/components/menu-item-card';
 import { CategoryPills } from '@/components/category-pills';
 import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
 function CardapioContent() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const { itemCount, orders } = useCart();
   const { activeEvent } = useActiveEvent();
   const eventId = useEventId();
@@ -78,43 +82,54 @@ function CardapioContent() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsCartOpen(true)}
-                className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors hover:bg-primary/15"
-                aria-label="Abrir carrinho"
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {itemCount > 0 && (
-                  <span
-                    className={cn(
-                      'absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center',
-                      'rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground'
-                    )}
+              {isAuthenticated ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsCartOpen(true)}
+                    className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors hover:bg-primary/15"
+                    aria-label="Abrir carrinho"
                   >
-                    {itemCount}
-                  </span>
-                )}
-              </button>
+                    <ShoppingBag className="h-5 w-5" />
+                    {itemCount > 0 && (
+                      <span
+                        className={cn(
+                          'absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center',
+                          'rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground'
+                        )}
+                      >
+                        {itemCount}
+                      </span>
+                    )}
+                  </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  router.push(buildConsumerEventHref('/carteira', eventId, { tab: 'fichas' }))
-                }
-                className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 transition-colors hover:bg-secondary/80"
-              >
-                <Wallet className="h-5 w-5 text-primary" />
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-foreground">
-                    R$ {formattedBalance}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {availableFichasCount}{' '}
-                    {availableFichasCount === 1 ? 'ficha' : 'fichas'}
-                  </p>
-                </div>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(buildConsumerEventHref('/carteira', eventId, { tab: 'fichas' }))
+                    }
+                    className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 transition-colors hover:bg-secondary/80"
+                  >
+                    <Wallet className="h-5 w-5 text-primary" />
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-foreground">
+                        R$ {formattedBalance}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {availableFichasCount}{' '}
+                        {availableFichasCount === 1 ? 'ficha' : 'fichas'}
+                      </p>
+                    </div>
+                  </button>
+                </>
+              ) : (
+                <Link href="/login">
+                  <Button variant="outline" size="sm" className="rounded-xl h-10">
+                    <LogIn className="h-4 w-4 mr-1" />
+                    Entrar
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
 
