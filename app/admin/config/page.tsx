@@ -174,7 +174,7 @@ export default function ConfigPage() {
 
         {/* Version */}
         <p className="text-center text-sm text-muted-foreground">
-          Quermesse Digital v1.0.0
+          FichAqui v1.0.0
         </p>
       </main>
     </div>

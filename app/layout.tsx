@@ -11,7 +11,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: 'Quermesse Digital | Gestão de Eventos',
+  title: 'FichAqui | Gestão de Eventos',
   description: 'Sistema de gestão para quermesses e festas de igreja',
   generator: 'v0.app',
 }
