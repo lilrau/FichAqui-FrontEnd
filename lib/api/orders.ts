@@ -3,6 +3,7 @@ import { resolveProductImage } from '@/lib/catalog/product-images';
 import type { AdminOrder } from '@/lib/types/admin-order';
 import type { Ficha, MenuItem, Order, OrderStatus } from '@/lib/types/event-domain';
 import type { ConsumerOrder, ConsumerOrderSummaryItem } from '@/lib/types/consumer-order';
+import type { PaymentInfo } from '@/lib/types/payment';
 
 export type ApiPaymentMethod = 'credit_card' | 'pix' | 'wallet';
 
@@ -23,7 +24,16 @@ export type CreateOrderPayload = {
   items: CreateOrderItemPayload[];
   paymentMethod: ApiPaymentMethod;
   cardId?: string | null;
+  cardToken?: string | null;
+  paymentMethodId?: string | null;
+  saveCard?: boolean;
 };
+
+export interface CreateOrderResponse {
+  order: ApiOrder;
+  payment: PaymentInfo | null;
+  fichas: ApiFicha[];
+}
 
 interface ApiOrderSummaryItem {
   name: string;
@@ -159,13 +169,34 @@ export async function fetchEventPedidos(eventId: string): Promise<AdminOrder[]> 
   return data.map(normalizeAdminOrder);
 }
 
+function normalizeCreateOrderResponse(raw: ApiOrder | CreateOrderResponse): CreateOrderResponse {
+  if ('order' in raw && raw.order) {
+    return {
+      order: raw.order,
+      payment: raw.payment ?? null,
+      fichas: raw.fichas ?? raw.order.fichas ?? [],
+    };
+  }
+
+  const legacy = raw as ApiOrder;
+  return {
+    order: legacy,
+    payment: null,
+    fichas: legacy.fichas ?? [],
+  };
+}
+
 export async function createOrderApi(
   eventId: string,
   payload: CreateOrderPayload
-): Promise<ApiOrder> {
-  return apiRequest<ApiOrder>(`/api/events/${eventId}/pedidos`, {
-    method: 'POST',
-    auth: true,
-    body: payload,
-  });
+): Promise<CreateOrderResponse> {
+  const data = await apiRequest<ApiOrder | CreateOrderResponse>(
+    `/api/events/${eventId}/pedidos`,
+    {
+      method: 'POST',
+      auth: true,
+      body: payload,
+    }
+  );
+  return normalizeCreateOrderResponse(data);
 }

@@ -7,6 +7,8 @@ import { Wallet, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConsumerLoading } from '@/components/consumer-loading';
 import type { Ficha } from '@/lib/types/event-domain';
+import { WalletTopUpDialog } from '@/components/payments/wallet-top-up-dialog';
+import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
 import { FichaCard } from '@/components/ficha-card';
 import { useConsumerEventId } from '@/lib/consumer-scope';
@@ -83,7 +85,9 @@ function CarteiraContent() {
     searchParams.get('tab') === 'fichas' ? 'fichas' : 'movimentacoes';
   const initialTabIndex = tabs.findIndex((t) => t.id === initialTab);
 
-  const { balance, loadError } = useWallet();
+  const { balance, loadError, savedCards, defaultCard, refreshWallet } = useWallet();
+  const { config: paymentsConfig } = usePaymentsConfig();
+  const [topUpOpen, setTopUpOpen] = useState(false);
   const consumerEventId = useConsumerEventId();
   const { getAvailableFichasForEvent } = useUserOrders();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
@@ -125,14 +129,25 @@ function CarteiraContent() {
           {loadError && (
             <p className="mt-2 text-sm text-primary-foreground/80">{loadError}</p>
           )}
-          <Button
-            variant="secondary"
-            className="mt-5 w-full h-12 rounded-xl font-semibold"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar créditos
-          </Button>
+          {(paymentsConfig.topUpEnabled || paymentsConfig.enabled) && (
+            <Button
+              variant="secondary"
+              className="mt-5 w-full h-12 rounded-xl font-semibold"
+              onClick={() => setTopUpOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar créditos
+            </Button>
+          )}
         </motion.div>
+
+        <WalletTopUpDialog
+          open={topUpOpen}
+          onClose={() => setTopUpOpen(false)}
+          onSuccess={() => void refreshWallet()}
+          savedCards={savedCards}
+          defaultCardId={defaultCard?.id}
+        />
 
         <div className="space-y-4">
           <div className="relative grid h-12 grid-cols-2 rounded-xl bg-secondary p-1">

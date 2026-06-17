@@ -5,8 +5,12 @@ App de pedidos para festas juninas e eventos similares. Consumidores compram ite
 ## Language
 
 **Carteira**:
-Saldo pré-pago do Consumidor na plataforma, usado para pagamentos no evento. Pode incluir cartões salvos para cobrança.
+Saldo pré-pago do Consumidor na plataforma, usado para pagamentos no evento. Pode incluir cartões salvos para cobrança — referências tokenizadas (Mercado Pago), nunca PAN completo. O Consumidor pode **cadastrar cartão** em fluxo dedicado (sem Pedido) ou optar por salvar após pagamento no checkout.
 _Avoid_: Wallet, conta
+
+**Recarga**:
+Crédito adicionado ao saldo da Carteira via Mercado Pago (PIX ou cartão), em fluxo dedicado — separado do checkout de um Pedido. Confirmação assíncrona (PIX) segue a mesma regra de polling de pagamento pendente.
+_Avoid_: Top-up, depósito, add funds
 
 **Consumidor**:
 Pessoa autenticada que compra no evento — navega o Cardápio do Evento, faz Pedidos e retira Fichas nas Barracas. Perfil com nome e telefone editáveis via API; e-mail, CPF e data de nascimento somente leitura.
@@ -45,11 +49,21 @@ A disponibilidade de um Produto em uma Barraca específica, com variantes ativas
 _Avoid_: Listing, anúncio
 
 **Pedido**:
-Uma compra do consumidor, podendo conter itens de Barracas diferentes no mesmo pedido. Gera uma ou mais Fichas, já disponíveis para retirada imediatamente após a compra.
+Uma compra do consumidor, podendo conter itens de Barracas diferentes no mesmo pedido. Gera Fichas conforme confirmação do pagamento (ver regra por meio abaixo). Pagamento recusado ou expirado gera Pedido registrado para auditoria, **sem** Fichas (ex.: status de falha de pagamento).
 _Avoid_: Order, compra
 
+**Pagamento**:
+Cobrança de um Pedido. Meios: saldo da Carteira, cartão (Mercado Pago) ou PIX (Mercado Pago). A confirmação determina quando as Fichas ficam disponíveis. Cartão novo pode ser **salvo na Carteira** apenas com opt-in explícito do Consumidor após pagamento aprovado.
+_Avoid_: Payment, cobrança, checkout
+
 **Ficha**:
-Comprovante de retirada de uma unidade comprada. Vinculada à Barraca da Oferta escolhida. Fica disponível para retirada assim que o Pedido é criado — não há tempo de espera nem preparo. Cada unidade comprada gera uma Ficha com QR próprio; o status passa a entregue na Retirada.
+Comprovante de retirada de uma unidade comprada. Vinculada à Barraca da Oferta escolhida. Cada unidade comprada gera uma Ficha com QR próprio; o status passa a entregue na Retirada.
+
+**Disponibilidade da Ficha (por meio de pagamento):**
+- **Carteira:** imediata — saldo já está na plataforma.
+- **Cartão (MP):** imediata quando o pagamento retorna `approved` na mesma requisição. Se `rejected`, Pedido fica registrado em falha, sem Fichas.
+- **PIX (MP):** somente após `approved` (webhook); enquanto pendente, o Pedido existe mas **sem** Fichas. PIX expirado ou rejeitado → Pedido em falha (estado terminal), sem Fichas.
+
 _Avoid_: Ticket, voucher, QR
 
 **Retirada**:

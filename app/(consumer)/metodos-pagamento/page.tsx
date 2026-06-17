@@ -1,14 +1,40 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import { SavedCreditCard } from '@/components/saved-credit-card';
+import { MpCardForm } from '@/components/payments/mp-card-form';
+import { Button } from '@/components/ui/button';
+import { addWalletCard } from '@/lib/api/wallet';
+import { getErrorMessage } from '@/lib/api/errors';
+import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import { useWallet } from '@/lib/wallet-context';
 
 export default function MetodosPagamentoPage() {
   const router = useRouter();
-  const { savedCards, loadError, hydrated } = useWallet();
+  const { savedCards, loadError, hydrated, refreshWallet } = useWallet();
+  const { config } = usePaymentsConfig();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const mpReady = config.enabled && config.cardEnabled && Boolean(config.publicKey);
+
+  const handleAddCard = async (token: { token: string; paymentMethodId: string }) => {
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await addWalletCard(token);
+      await refreshWallet();
+      setShowAddForm(false);
+    } catch (error) {
+      setFormError(getErrorMessage(error, 'Não foi possível salvar o cartão.'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -29,14 +55,52 @@ export default function MetodosPagamentoPage() {
 
       <main className="px-4 py-6 space-y-6">
         <p className="text-sm text-muted-foreground">
-          Cartões vinculados à sua conta. A gestão de cartões (adicionar ou remover) será
-          disponibilizada em uma atualização futura.
+          Cartões vinculados à sua conta para checkout e recarga da carteira.
         </p>
 
         {loadError && (
           <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {loadError}
           </p>
+        )}
+
+        {mpReady && !showAddForm && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 rounded-xl"
+            onClick={() => setShowAddForm(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar cartão
+          </Button>
+        )}
+
+        {showAddForm && config.publicKey && (
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-foreground">Novo cartão</h2>
+              <button
+                type="button"
+                className="text-sm text-muted-foreground"
+                onClick={() => setShowAddForm(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+            <MpCardForm
+              publicKey={config.publicKey}
+              amount="1.00"
+              showSubmit
+              submitLabel={submitting ? 'Salvando…' : 'Salvar cartão'}
+              disabled={submitting}
+              onError={setFormError}
+              onToken={handleAddCard}
+            />
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+          </div>
         )}
 
         {!hydrated ? (
@@ -54,7 +118,9 @@ export default function MetodosPagamentoPage() {
             </div>
             <p className="mt-4 font-semibold text-foreground">Nenhum cartão salvo</p>
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-              Quando houver cartões na sua carteira, eles aparecerão aqui.
+              {mpReady
+                ? 'Adicione um cartão para usar no checkout.'
+                : 'Cartões ficarão disponíveis quando o Mercado Pago estiver configurado.'}
             </p>
           </motion.div>
         ) : (

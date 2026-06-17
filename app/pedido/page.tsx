@@ -1,18 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Check, PartyPopper } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { checkoutOrder, type CheckoutPaymentMethod } from '@/lib/checkout';
+import {
+  checkoutOrder,
+  hasImmediateFichas,
+  isCheckoutPaymentFailed,
+  needsPixConfirmation,
+  type CheckoutPaymentMethod,
+  type CheckoutResult,
+} from '@/lib/checkout';
+import { fetchUserPedidos } from '@/lib/api/orders';
 import { getErrorMessage } from '@/lib/api/errors';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
 import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
 import { useUserOrders } from '@/lib/user-orders-context';
+import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import { OrderStatus, OrderQRCode } from '@/components/order-status';
 import type { Order } from '@/lib/types/event-domain';
+import type { PaymentInfo } from '@/lib/types/payment';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/menu-item-card';
@@ -20,29 +30,54 @@ import {
   PaymentFlowOverlay,
   type PaymentFlowPhase,
 } from '@/components/payment-flow-overlay';
+import { MpCardForm, type MpCardFormHandle } from '@/components/payments/mp-card-form';
+import { PixPaymentPanel } from '@/components/payments/pix-payment-panel';
 import { cn } from '@/lib/utils';
 
 type PaymentMethod = CheckoutPaymentMethod;
+type CardMode = 'saved' | 'new';
 
-function buildPaymentOptions(balance: number, total: number) {
+function buildPaymentOptions(
+  balance: number,
+  total: number,
+  pixEnabled: boolean,
+  cardEnabled: boolean
+) {
   const walletDisabled = balance < total;
 
-  return [
+  const options: Array<{
+    id: PaymentMethod;
+    label: string;
+    hint: string;
+    disabled?: boolean;
+  }> = [
     {
-      id: 'wallet' as const,
+      id: 'wallet',
       label: 'Saldo da carteira',
       hint: walletDisabled
         ? `Saldo insuficiente (R$ ${formatWalletBalance(balance)})`
         : `Usar saldo disponível (R$ ${formatWalletBalance(balance)})`,
       disabled: walletDisabled,
     },
-    { id: 'pix' as const, label: 'PIX', hint: 'Pagamento instantâneo' },
-    {
-      id: 'card' as const,
-      label: 'Cartão de crédito',
-      hint: 'Cobrança no crédito do cartão selecionado',
-    },
   ];
+
+  if (pixEnabled) {
+    options.push({
+      id: 'pix',
+      label: 'PIX',
+      hint: 'Pagamento instantâneo',
+    });
+  }
+
+  if (cardEnabled) {
+    options.push({
+      id: 'card',
+      label: 'Cartão de crédito',
+      hint: 'Cobrança no crédito do cartão',
+    });
+  }
+
+  return options;
 }
 
 const paymentSelectTransition = {
@@ -57,19 +92,36 @@ function PedidoContent() {
   const { items, total, fulfillOrder, currentOrder, setCurrentOrder } = useCart();
   const { savedCards, defaultCard, balance, refreshWallet } = useWallet();
   const { refreshUserOrders } = useUserOrders();
+  const { config: paymentsConfig } = usePaymentsConfig();
+  const mpFormRef = useRef<MpCardFormHandle>(null);
   const cardapioHref = buildConsumerEventHref('/cardapio', eventId);
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlowPhase | null>(null);
+  const [pixPayment, setPixPayment] = useState<PaymentInfo | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wallet');
+  const [cardMode, setCardMode] = useState<CardMode>('saved');
   const [selectedCardId, setSelectedCardId] = useState('');
+  const [saveCard, setSaveCard] = useState(false);
+  const [mpFormReady, setMpFormReady] = useState(false);
+  const [pixCheckout, setPixCheckout] = useState<CheckoutResult | null>(null);
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
 
-  const paymentOptions = buildPaymentOptions(balance, total);
-  const canPayWithWallet = balance >= total;
+  const mpEnabled = paymentsConfig.enabled && Boolean(paymentsConfig.publicKey);
+  const cardEnabled =
+    paymentsConfig.cardEnabled && (mpEnabled || savedCards.length > 0);
+  const pixEnabled = paymentsConfig.pixEnabled;
+  const paymentOptions = useMemo(
+    () => buildPaymentOptions(balance, total, pixEnabled, cardEnabled),
+    [balance, total, pixEnabled, cardEnabled]
+  );
+
   const canPayWithCard =
-    paymentMethod !== 'card' || (savedCards.length > 0 && Boolean(selectedCardId));
+    paymentMethod !== 'card' ||
+    (cardMode === 'saved'
+      ? savedCards.length > 0 && Boolean(selectedCardId)
+      : mpEnabled && mpFormReady);
 
   useEffect(() => {
     if (defaultCard) {
@@ -77,22 +129,77 @@ function PedidoContent() {
     }
   }, [defaultCard]);
 
+  useEffect(() => {
+    if (paymentMethod === 'card' && savedCards.length === 0 && mpEnabled) {
+      setCardMode('new');
+    } else if (savedCards.length > 0) {
+      setCardMode('saved');
+    }
+  }, [paymentMethod, savedCards.length, mpEnabled]);
+
+  useEffect(() => {
+    const firstAvailable = paymentOptions.find((option) => !option.disabled);
+    if (firstAvailable) {
+      setPaymentMethod(firstAvailable.id);
+    }
+  }, [paymentOptions]);
+
+  const completeCheckoutSuccess = async (order: Order) => {
+    await refreshWallet();
+    await refreshUserOrders();
+    setPendingOrder(order);
+    setPaymentFlow('success');
+  };
+
   const handleConfirm = async () => {
     if (items.length === 0) return;
-    if (paymentMethod === 'card' && !selectedCardId) return;
+    if (paymentMethod === 'card' && !canPayWithCard) return;
 
     setIsConfirming(true);
     setPaymentFlow('processing');
     setPaymentError(null);
 
     try {
-      const order = await checkoutOrder(eventId, items, paymentMethod, {
-        cardId: selectedCardId,
+      let cardToken: string | undefined;
+      let paymentMethodId: string | undefined;
+
+      if (paymentMethod === 'card' && cardMode === 'new') {
+        const tokenResult = await mpFormRef.current?.createToken();
+        if (!tokenResult) {
+          throw new Error('Formulário de cartão indisponível.');
+        }
+        cardToken = tokenResult.token;
+        paymentMethodId = tokenResult.paymentMethodId;
+      }
+
+      const result = await checkoutOrder(eventId, items, paymentMethod, {
+        cardId: paymentMethod === 'card' && cardMode === 'saved' ? selectedCardId : null,
+        cardToken: cardToken ?? null,
+        paymentMethodId: paymentMethodId ?? null,
+        saveCard: paymentMethod === 'card' && cardMode === 'new' ? saveCard : false,
       });
-      await refreshWallet();
-      await refreshUserOrders();
-      setPendingOrder(order);
-      setPaymentFlow('success');
+
+      if (isCheckoutPaymentFailed(result)) {
+        setPaymentError('Pagamento recusado. O pedido foi registrado sem fichas.');
+        setPaymentFlow('error');
+        return;
+      }
+
+      if (needsPixConfirmation(result) && result.payment) {
+        setPixCheckout(result);
+        setPixPayment(result.payment);
+        setPaymentFlow(null);
+        setIsConfirming(false);
+        return;
+      }
+
+      if (hasImmediateFichas(result)) {
+        await completeCheckoutSuccess(result.order);
+        return;
+      }
+
+      setPaymentError('Pagamento em processamento. Tente novamente em instantes.');
+      setPaymentFlow('error');
     } catch (error) {
       setPaymentError(getErrorMessage(error, 'Não foi possível concluir o pagamento.'));
       setPaymentFlow('error');
@@ -103,6 +210,8 @@ function PedidoContent() {
 
   const handleBackToPayment = () => {
     setPaymentFlow(null);
+    setPixPayment(null);
+    setPixCheckout(null);
     setPaymentError(null);
     setIsConfirming(false);
     setPendingOrder(null);
@@ -115,8 +224,44 @@ function PedidoContent() {
     }
     setShowSuccess(true);
     setPaymentFlow(null);
+    setPixPayment(null);
     setIsConfirming(false);
   };
+
+  if (pixPayment) {
+    return (
+      <PixPaymentPanel
+        payment={pixPayment}
+        onApproved={() => {
+          void (async () => {
+            await refreshWallet();
+            await refreshUserOrders();
+            const orderId = pixCheckout?.order.id;
+            if (!orderId) {
+              setPaymentFlow('success');
+              return;
+            }
+            const orders = await fetchUserPedidos(true);
+            const refreshed = orders.find((order) => order.id === orderId);
+            const order: Order = {
+              ...(pixCheckout?.order ?? { id: orderId, eventId, items, total, status: 'available', createdAt: new Date(), qrCode: '', number: '' }),
+              fichas: refreshed?.fichas ?? [],
+              status: refreshed?.status ?? pixCheckout?.order.status ?? 'available',
+            };
+            await completeCheckoutSuccess(order);
+            setPixCheckout(null);
+          })();
+        }}
+        onRejected={() => {
+          setPaymentError('PIX expirado ou recusado.');
+          setPixPayment(null);
+          setPixCheckout(null);
+          setPaymentFlow('error');
+        }}
+        onCancel={handleBackToPayment}
+      />
+    );
+  }
 
   if (paymentFlow) {
     return (
@@ -131,11 +276,9 @@ function PedidoContent() {
 
   const hasNewCheckout = items.length > 0;
 
-  // Pedido concluído — só quando o carrinho está vazio (nova compra usa o checkout)
   if ((currentOrder || showSuccess) && !hasNewCheckout) {
     return (
       <div className="min-h-screen bg-background">
-        {/* Header */}
         <header className="sticky top-0 z-30 bg-background border-b border-border">
           <div className="flex items-center justify-between px-4 py-4">
             <button
@@ -149,7 +292,6 @@ function PedidoContent() {
         </header>
 
         <main className="px-4 py-6 space-y-6">
-          {/* Success Animation */}
           {showSuccess && !currentOrder && (
             <motion.div
               initial={{ scale: 0 }}
@@ -180,15 +322,11 @@ function PedidoContent() {
               <OrderStatus order={currentOrder} />
               <OrderQRCode order={currentOrder} />
 
-              {/* Order Items */}
               <div className="rounded-2xl bg-card p-4 shadow-md border border-border">
                 <h3 className="font-bold text-card-foreground mb-4">Itens do pedido</h3>
                 <div className="space-y-3">
                   {currentOrder.items.map((cartItem) => (
-                    <div
-                      key={cartItem.item.id}
-                      className="flex items-center gap-3"
-                    >
+                    <div key={cartItem.item.id} className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-xl">
                         {cartItem.item.image}
                       </div>
@@ -211,7 +349,6 @@ function PedidoContent() {
                 </div>
               </div>
 
-              {/* Back Button */}
               <Button
                 onClick={() => {
                   setCurrentOrder(null);
@@ -231,10 +368,8 @@ function PedidoContent() {
     );
   }
 
-  // Tela de confirmação do pedido
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-background border-b border-border">
         <div className="flex items-center justify-between px-4 py-4">
           <button
@@ -259,17 +394,14 @@ function PedidoContent() {
             <p className="mt-1 text-sm text-muted-foreground">
               Adicione itens do cardápio
             </p>
-            <Button
-              onClick={() => router.push(cardapioHref)}
-              className="mt-6"
-            >
+            <Button onClick={() => router.push(cardapioHref)} className="mt-6">
               Ver cardápio
             </Button>
           </div>
         ) : (
           <div className="space-y-4">
             <h2 className="font-bold text-lg text-foreground">Seus itens</h2>
-            
+
             {items.map((cartItem) => (
               <MenuItemCard
                 key={cartItem.item.id}
@@ -278,7 +410,6 @@ function PedidoContent() {
               />
             ))}
 
-            {/* Summary */}
             <div className="mt-6 rounded-2xl bg-card p-4 shadow-md border border-border">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -298,7 +429,6 @@ function PedidoContent() {
               </div>
             </div>
 
-            {/* Payment Method */}
             <div className="rounded-2xl bg-card p-4 shadow-md border border-border">
               <h3 className="font-bold text-card-foreground mb-3">Forma de pagamento</h3>
               <LayoutGroup id="pedido-payment-method">
@@ -353,81 +483,122 @@ function PedidoContent() {
                 </div>
 
                 <AnimatePresence initial={false}>
-                  {paymentMethod === 'card' && savedCards.length === 0 && (
-                    <motion.p
-                      key="no-cards"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="mt-3 text-sm text-muted-foreground"
-                    >
-                      Nenhum cartão salvo na carteira. Escolha PIX ou saldo.
-                    </motion.p>
-                  )}
-                  {paymentMethod === 'card' && savedCards.length > 0 && (
+                  {paymentMethod === 'card' && (
                     <motion.div
-                      key="saved-cards"
+                      key="card-options"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-3 space-y-2 border-t border-border pt-3">
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Cartão de crédito para cobrança
-                        </p>
-                        <LayoutGroup id="pedido-payment-card">
-                          {savedCards.map((card, index) => {
-                            const selected = selectedCardId === card.id;
+                      <div className="mt-3 space-y-3 border-t border-border pt-3">
+                        {savedCards.length > 0 && mpEnabled && (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCardMode('saved')}
+                              className={cn(
+                                'flex-1 rounded-lg border px-3 py-2 text-sm',
+                                cardMode === 'saved' && 'border-primary bg-primary/5'
+                              )}
+                            >
+                              Cartão salvo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCardMode('new')}
+                              className={cn(
+                                'flex-1 rounded-lg border px-3 py-2 text-sm',
+                                cardMode === 'new' && 'border-primary bg-primary/5'
+                              )}
+                            >
+                              Novo cartão
+                            </button>
+                          </div>
+                        )}
 
-                            return (
-                              <motion.label
-                                key={card.id}
-                                layout
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05, ...paymentSelectTransition }}
-                                className={cn(
-                                  'relative flex cursor-pointer items-center gap-3 rounded-xl border p-3',
-                                  !selected && 'border-border bg-background'
-                                )}
-                              >
-                                {selected && (
-                                  <motion.div
-                                    layoutId="pedido-payment-card-active"
-                                    className="absolute inset-0 rounded-xl border border-primary bg-primary/5"
-                                    transition={paymentSelectTransition}
-                                  />
-                                )}
-                                <input
-                                  type="radio"
-                                  name="payment-card"
-                                  checked={selected}
-                                  onChange={() => setSelectedCardId(card.id)}
-                                  className="relative z-10 h-5 w-5 accent-primary"
-                                />
-                                <CardBrandLogo
-                                  brand={card.brand}
-                                  className="relative z-10 h-9 w-14"
-                                />
-                                <div className="relative z-10 min-w-0 flex-1">
-                                  <p className="font-mono text-sm font-medium text-foreground">
-                                    •••• {card.lastFour}
-                                  </p>
-                                  <p className="truncate text-xs text-muted-foreground">
-                                    {card.holderName}
-                                  </p>
-                                </div>
-                                {card.isDefault && (
-                                  <span className="relative z-10 shrink-0 text-xs font-medium text-primary">
-                                    Padrão
-                                  </span>
-                                )}
-                              </motion.label>
-                            );
-                          })}
-                        </LayoutGroup>
+                        {cardMode === 'saved' && savedCards.length > 0 ? (
+                          <>
+                            <p className="text-sm font-medium text-muted-foreground">
+                              Cartão de crédito para cobrança
+                            </p>
+                            <LayoutGroup id="pedido-payment-card">
+                              {savedCards.map((card, index) => {
+                                const selected = selectedCardId === card.id;
+
+                                return (
+                                  <motion.label
+                                    key={card.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.05, ...paymentSelectTransition }}
+                                    className={cn(
+                                      'relative flex cursor-pointer items-center gap-3 rounded-xl border p-3',
+                                      !selected && 'border-border bg-background'
+                                    )}
+                                  >
+                                    {selected && (
+                                      <motion.div
+                                        layoutId="pedido-payment-card-active"
+                                        className="absolute inset-0 rounded-xl border border-primary bg-primary/5"
+                                        transition={paymentSelectTransition}
+                                      />
+                                    )}
+                                    <input
+                                      type="radio"
+                                      name="payment-card"
+                                      checked={selected}
+                                      onChange={() => setSelectedCardId(card.id)}
+                                      className="relative z-10 h-5 w-5 accent-primary"
+                                    />
+                                    <CardBrandLogo
+                                      brand={card.brand}
+                                      className="relative z-10 h-9 w-14"
+                                    />
+                                    <div className="relative z-10 min-w-0 flex-1">
+                                      <p className="font-mono text-sm font-medium text-foreground">
+                                        •••• {card.lastFour}
+                                      </p>
+                                      <p className="truncate text-xs text-muted-foreground">
+                                        {card.holderName}
+                                      </p>
+                                    </div>
+                                    {card.isDefault && (
+                                      <span className="relative z-10 shrink-0 text-xs font-medium text-primary">
+                                        Padrão
+                                      </span>
+                                    )}
+                                  </motion.label>
+                                );
+                              })}
+                            </LayoutGroup>
+                          </>
+                        ) : mpEnabled && paymentsConfig.publicKey ? (
+                          <>
+                            <MpCardForm
+                              ref={mpFormRef}
+                              publicKey={paymentsConfig.publicKey}
+                              amount={total.toFixed(2)}
+                              onReadyChange={setMpFormReady}
+                              onError={setPaymentError}
+                            />
+                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <input
+                                type="checkbox"
+                                checked={saveCard}
+                                onChange={(event) => setSaveCard(event.target.checked)}
+                                className="accent-primary"
+                              />
+                              Salvar cartão para próximas compras
+                            </label>
+                          </>
+                        ) : savedCards.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhum cartão salvo. Use PIX ou saldo da carteira.
+                          </p>
+                        ) : null}
                       </div>
                     </motion.div>
                   )}
@@ -438,7 +609,6 @@ function PedidoContent() {
         )}
       </main>
 
-      {/* Fixed Footer */}
       {items.length > 0 && (
         <div className="fixed bottom-0 inset-x-0 bg-background border-t border-border px-4 py-4 pb-8">
           <Button
