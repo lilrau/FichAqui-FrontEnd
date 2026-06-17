@@ -208,4 +208,9 @@
     animation-duration: 0.45s;
     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  /* Hidden until Framer Motion applies animate styles (prevents one-frame flash) */
+  .page-transition-screen {
+    opacity: 0;
+  }
 }

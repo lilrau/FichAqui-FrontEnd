@@ -1,22 +1,21 @@
 'use client';
 
-import { Suspense, type ReactNode } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ConsumerLoading } from '@/components/consumer-loading';
+import { FrozenRoute } from '@/components/frozen-route';
 import { useNavigation } from '@/components/navigation-provider';
 
 const fadeTransition = { duration: 0.28, ease: [0.4, 0, 0.2, 1] as const };
 
-function useRouteKey(): string {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const query = searchParams.toString();
-  return query ? `${pathname}?${query}` : pathname;
-}
+const pageVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+} as const;
 
 function PageTransitionInner({ children }: { children: ReactNode }) {
-  const routeKey = useRouteKey();
+  const routeKey = usePathname();
   const { isPending } = useNavigation();
 
   return (
@@ -46,16 +45,17 @@ function PageTransitionInner({ children }: { children: ReactNode }) {
         )}
       </AnimatePresence>
 
-      <AnimatePresence initial={false}>
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={routeKey}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
           transition={fadeTransition}
-          className="min-h-screen"
+          className="page-transition-screen min-h-screen"
         >
-          {children}
+          <FrozenRoute>{children}</FrozenRoute>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -63,9 +63,5 @@ function PageTransitionInner({ children }: { children: ReactNode }) {
 }
 
 export function PageTransition({ children }: { children: ReactNode }) {
-  return (
-    <Suspense fallback={<ConsumerLoading />}>
-      <PageTransitionInner>{children}</PageTransitionInner>
-    </Suspense>
-  );
+  return <PageTransitionInner>{children}</PageTransitionInner>;
 }
