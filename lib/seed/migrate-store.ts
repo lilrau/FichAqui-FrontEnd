@@ -1,7 +1,7 @@
-import type { Event, MenuProduct, Order, Stall } from '@/lib/types/event-domain';
+import type { Event, MenuProduct, Offering, Order, Stall } from '@/lib/types/event-domain';
 import { seedEvents } from '@/lib/seed/events';
 import { seedStalls } from '@/lib/seed/stalls';
-import { seedMenuProducts } from '@/lib/seed/menu-products';
+import { seedOfferings } from '@/lib/seed/offerings';
 import { seedOrders, parseStoredOrders } from '@/lib/seed/orders';
 
 const DEFAULT_CITY_ID = 'curitiba-pr';
@@ -46,14 +46,67 @@ export function migrateStalls(stored: Stall[] | null | undefined): Stall[] {
   return [...merged, ...extra];
 }
 
-export function migrateMenuProducts(stored: MenuProduct[] | null | undefined): MenuProduct[] {
-  if (!Array.isArray(stored) || stored.length === 0) return seedMenuProducts;
-  const seedIds = new Set(seedMenuProducts.map((p) => p.id));
-  const extra = stored.filter((p) => p?.id && !seedIds.has(p.id));
-  const merged = seedMenuProducts.map((seed) => {
-    const found = stored.find((p) => p.id === seed.id);
-    return found ? { ...seed, ...found, eventId: found.eventId ?? seed.eventId } : seed;
+function isLegacyMenuProduct(value: unknown): value is MenuProduct {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'stallId' in value &&
+    'variants' in value &&
+    'eventId' in value &&
+    !('productId' in value)
+  );
+}
+
+function legacyVariantToTemplateId(variantId: string, productId: string): string {
+  const prefix = `${productId}-`;
+  if (variantId.startsWith(prefix)) {
+    return variantId.slice(prefix.length);
+  }
+  return variantId;
+}
+
+function migrateLegacyMenuProducts(products: MenuProduct[]): Offering[] {
+  return products.map((product) => ({
+    id: `offering-${product.eventId}-${product.stallId}-${product.id}`,
+    eventId: product.eventId,
+    stallId: product.stallId,
+    productId: product.id,
+    available: product.available,
+    variants: product.variants.map((variant) => ({
+      templateId: legacyVariantToTemplateId(variant.id, product.id),
+      price: variant.price,
+      available: variant.available,
+      badge: variant.badge,
+    })),
+  }));
+}
+
+export function migrateOfferings(
+  stored: Offering[] | MenuProduct[] | null | undefined
+): Offering[] {
+  if (!Array.isArray(stored) || stored.length === 0) return seedOfferings;
+
+  if (stored.some(isLegacyMenuProduct)) {
+    return migrateLegacyMenuProducts(stored as MenuProduct[]);
+  }
+
+  const seedIds = new Set(seedOfferings.map((offering) => offering.id));
+  const extra = (stored as Offering[]).filter(
+    (offering) => offering?.id && !seedIds.has(offering.id)
+  );
+  const merged = seedOfferings.map((seed) => {
+    const found = (stored as Offering[]).find((offering) => offering.id === seed.id);
+    return found
+      ? {
+          ...seed,
+          ...found,
+          eventId: found.eventId ?? seed.eventId,
+          stallId: found.stallId ?? seed.stallId,
+          productId: found.productId ?? seed.productId,
+        }
+      : seed;
   });
+
   return [...merged, ...extra];
 }
 

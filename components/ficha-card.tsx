@@ -35,7 +35,10 @@ export function FichaCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xl shrink-0">{ficha.itemImage}</span>
-          <p className="font-semibold text-foreground truncate">{ficha.itemName}</p>
+          <div className="min-w-0">
+            <p className="font-semibold text-foreground truncate">{ficha.itemName}</p>
+            <p className="text-xs text-muted-foreground truncate">{ficha.stallName}</p>
+          </div>
         </div>
         {excludedFromEvent ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2.5 py-1 text-xs font-semibold shrink-0 text-yellow-700 dark:text-yellow-400">

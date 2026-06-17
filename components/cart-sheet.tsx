@@ -97,6 +97,9 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
                         <p className="font-semibold text-foreground truncate">
                           {cartItem.item.name}
                         </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {cartItem.item.stallName}
+                        </p>
                         <p className="text-sm font-bold text-primary">
                           R$ {(cartItem.item.price * cartItem.quantity).toFixed(2)}
                         </p>

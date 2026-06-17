@@ -1,5 +1,10 @@
 /** @deprecated Import from `@/lib/types/event-domain` or `@/lib/seed` instead. */
 export type {
+  CatalogProduct,
+  CatalogVariantTemplate,
+  Offering,
+  OfferingVariant,
+  CardapioProduct,
   MenuVariant,
   MenuProduct,
   MenuItem,
@@ -18,11 +23,15 @@ export {
   generateQRCode,
 } from '@/lib/types/event-domain';
 
-export { buildMenuItemsFromProducts } from '@/lib/catalog/menu-catalog';
+export {
+  buildMenuItemsFromOfferings,
+  buildCardapioForEvent,
+} from '@/lib/catalog/menu-catalog';
 export { seedCategories as categories } from '@/lib/seed/categories';
 export { seedEvents as events } from '@/lib/seed/events';
 export { seedStalls as stalls } from '@/lib/seed/stalls';
-export { seedMenuProducts as menuProducts } from '@/lib/seed/menu-products';
+export { seedCatalogProducts as catalogProducts } from '@/lib/seed/global-catalog';
+export { seedOfferings as offerings } from '@/lib/seed/offerings';
 
 export type { CardBrand, CardNetwork } from './card-brand';
 
@@ -47,7 +56,8 @@ export const mockAvailableFichas: Ficha[] = [
     itemName: 'Pastel — Carne',
     itemImage: '🥟',
     stallId: 'stall-1',
-    qrCode: 'QR-12345-pastel-carne',
+    stallName: 'Barraca do Pastel',
+    qrCode: 'QR-12345-offering-1-stall-1-pastel:carne-0',
     status: 'available',
   },
   {
@@ -56,7 +66,8 @@ export const mockAvailableFichas: Ficha[] = [
     itemName: 'Milho Verde',
     itemImage: '🌽',
     stallId: 'stall-2',
-    qrCode: 'QR-12345-milho-verde-unidade',
+    stallName: 'Barraca do Milho',
+    qrCode: 'QR-12345-offering-1-stall-2-milho-verde:unidade-0',
     status: 'available',
   },
   {
@@ -65,7 +76,8 @@ export const mockAvailableFichas: Ficha[] = [
     itemName: 'Cachorro Quente',
     itemImage: '🌭',
     stallId: 'stall-2',
-    qrCode: 'QR-99001-cachorro-quente-unidade',
+    stallName: 'Barraca do Milho',
+    qrCode: 'QR-99001-offering-1-stall-2-cachorro-quente:unidade-0',
     status: 'available',
   },
 ];

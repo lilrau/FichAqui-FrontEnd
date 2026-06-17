@@ -1,34 +1,44 @@
-import type { MenuItem, MenuProduct, MenuVariant } from '@/lib/mock-data';
+import type {
+  CardapioProduct,
+  CatalogProduct,
+  MenuItem,
+  Offering,
+  OfferingVariant,
+  Stall,
+} from '@/lib/types/event-domain';
+import { buildMenuItem, buildMenuItemId } from '@/lib/catalog/menu-catalog';
 
-export function hasMultipleVariants(product: MenuProduct): boolean {
-  return product.variants.length > 1;
+export function hasMultipleVariants(product: CatalogProduct): boolean {
+  return product.variantTemplates.length > 1;
 }
 
-export function getAvailableVariants(product: MenuProduct): MenuVariant[] {
-  return product.variants.filter((variant) => variant.available);
+export function getActiveOfferingVariants(offering: Offering): OfferingVariant[] {
+  return offering.variants.filter((variant) => variant.available);
 }
 
-export function getProductPriceParts(
-  product: MenuProduct
-):
+export function getCardapioPriceParts(entry: CardapioProduct):
   | { kind: 'unavailable' }
   | { kind: 'free' }
   | { kind: 'single'; price: string }
   | { kind: 'from'; price: string } {
-  const prices = getAvailableVariants(product).map((variant) => variant.price);
+  const prices = entry.offerings.flatMap((offering) =>
+    getActiveOfferingVariants(offering).map((variant) => variant.price)
+  );
 
   if (prices.length === 0) return { kind: 'unavailable' };
 
   const min = Math.min(...prices);
-  const max = Math.max(...prices);
 
-  if (min === 0 && max === 0) return { kind: 'free' };
-  if (min === max) return { kind: 'single', price: `R$ ${min.toFixed(2)}` };
+  if (min === 0 && prices.every((price) => price === 0)) return { kind: 'free' };
+  if (prices.length === 1 || new Set(prices).size === 1) {
+    return { kind: 'single', price: `R$ ${min.toFixed(2)}` };
+  }
+
   return { kind: 'from', price: `R$ ${min.toFixed(2)}` };
 }
 
-export function getProductPriceDisplay(product: MenuProduct): string {
-  const parts = getProductPriceParts(product);
+export function getCardapioPriceDisplay(entry: CardapioProduct): string {
+  const parts = getCardapioPriceParts(entry);
 
   if (parts.kind === 'unavailable') return 'Indisponível';
   if (parts.kind === 'free') return 'Grátis';
@@ -36,55 +46,93 @@ export function getProductPriceDisplay(product: MenuProduct): string {
   return `A partir de ${parts.price}`;
 }
 
-export function variantToMenuItem(product: MenuProduct, variant: MenuVariant): MenuItem {
-  const name = hasMultipleVariants(product)
-    ? `${product.name} — ${variant.label}`
-    : product.name;
+export function offeringVariantToMenuItem(
+  product: CatalogProduct,
+  offering: Offering,
+  stall: Stall,
+  variant: OfferingVariant
+): MenuItem | null {
+  const template = product.variantTemplates.find((entry) => entry.id === variant.templateId);
+  if (!template) return null;
 
-  return {
-    id: variant.id,
-    productId: product.id,
-    name,
-    description: product.description,
-    price: variant.price,
-    category: product.category,
-    image: product.image,
-    badge: variant.badge ?? product.badge,
-    available: product.available && variant.available,
-    stallId: product.stallId,
-    variantLabel: variant.label,
-  };
+  return buildMenuItem(
+    product,
+    offering,
+    stall,
+    template.id,
+    template.label,
+    variant.price,
+    variant.available,
+    variant.badge
+  );
+}
+
+export function getPurchasableMenuItems(entry: CardapioProduct, stalls: Stall[]): MenuItem[] {
+  const stallsById = new Map(stalls.map((stall) => [stall.id, stall]));
+
+  return entry.offerings.flatMap((offering) => {
+    const stall = stallsById.get(offering.stallId);
+    if (!stall || stall.status !== 'open' || !offering.available) return [];
+
+    return offering.variants.flatMap((variant) => {
+      if (!variant.available) return [];
+      const menuItem = offeringVariantToMenuItem(entry.product, offering, stall, variant);
+      return menuItem ? [menuItem] : [];
+    });
+  });
+}
+
+export function canQuickAddFromCardapio(entry: CardapioProduct, stalls: Stall[]): MenuItem | null {
+  const purchasable = getPurchasableMenuItems(entry, stalls);
+  return purchasable.length === 1 ? purchasable[0] : null;
 }
 
 export function getProductCartQuantity(
-  product: MenuProduct,
+  entry: CardapioProduct,
   cartItems: { item: MenuItem; quantity: number }[]
 ): number {
-  const variantIds = new Set(product.variants.map((variant) => variant.id));
-
   return cartItems.reduce((sum, cartItem) => {
-    if (variantIds.has(cartItem.item.id)) {
+    if (cartItem.item.productId === entry.product.id) {
       return sum + cartItem.quantity;
     }
     return sum;
   }, 0);
 }
 
-export function getProductById(
-  products: MenuProduct[],
+export function getCardapioByProductId(
+  cardapio: CardapioProduct[],
   productId: string
-): MenuProduct | undefined {
-  return products.find((product) => product.id === productId);
+): CardapioProduct | undefined {
+  return cardapio.find((entry) => entry.product.id === productId);
 }
 
-export function productMatchesSearch(product: MenuProduct, query: string): boolean {
+export function cardapioMatchesSearch(entry: CardapioProduct, query: string): boolean {
   const normalized = query.toLowerCase();
+  const { product } = entry;
 
   return (
     product.name.toLowerCase().includes(normalized) ||
     product.description.toLowerCase().includes(normalized) ||
-    product.variants.some((variant) =>
-      variant.label.toLowerCase().includes(normalized)
+    product.variantTemplates.some((template) =>
+      template.label.toLowerCase().includes(normalized)
     )
   );
+}
+
+export function getOfferingVariantLabel(
+  product: CatalogProduct,
+  templateId: string
+): string {
+  return product.variantTemplates.find((template) => template.id === templateId)?.label ?? templateId;
+}
+
+export function getStallById(stalls: Stall[], stallId: string): Stall | undefined {
+  return stalls.find((stall) => stall.id === stallId);
+}
+
+export function buildMenuItemIdForOfferingVariant(
+  offeringId: string,
+  templateId: string
+): string {
+  return buildMenuItemId(offeringId, templateId);
 }

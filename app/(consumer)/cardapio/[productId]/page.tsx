@@ -1,17 +1,17 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Flame, LogIn, ShoppingBag } from 'lucide-react';
-import { getProductById } from '@/lib/menu-utils';
+import { ChevronLeft, Flame, LogIn, ShoppingBag, Store } from 'lucide-react';
+import Link from 'next/link';
+import { getCardapioByProductId, getStallById } from '@/lib/menu-utils';
 import { useCart } from '@/lib/cart-context';
 import { useEventStore } from '@/lib/event-store';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
 import { ConsumerLoading } from '@/components/consumer-loading';
 import { ProductPriceDisplay } from '@/components/product-price-display';
-import { MenuVariantRow } from '@/components/menu-item-card';
+import { OfferingVariantRow } from '@/components/menu-item-card';
 import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
@@ -27,20 +27,50 @@ export default function ProductPage({ params }: ProductPageProps) {
   const { isAuthenticated } = useAuth();
   const { itemCount } = useCart();
   const eventId = useEventId();
-  const { getMenuProductsByEventId } = useEventStore();
+  const { getCardapioByEventId, getStallsByEventId } = useEventStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const menuProducts = getMenuProductsByEventId(eventId);
-  const product = getProductById(menuProducts, productId);
+  const cardapio = getCardapioByEventId(eventId);
+  const stalls = getStallsByEventId(eventId);
+  const entry = getCardapioByProductId(cardapio, productId);
+  const openOfferings = useMemo(
+    () =>
+      entry?.offerings.filter((offering) => {
+        const stall = getStallById(stalls, offering.stallId);
+        return stall?.status === 'open' && offering.available;
+      }) ?? [],
+    [entry, stalls]
+  );
+  const [selectedOfferingId, setSelectedOfferingId] = useState<string | null>(null);
+
+  const selectedOffering =
+    openOfferings.find((offering) => offering.id === selectedOfferingId) ??
+    (openOfferings.length === 1 ? openOfferings[0] : null);
+  const selectedStall = selectedOffering
+    ? getStallById(stalls, selectedOffering.stallId)
+    : undefined;
 
   useEffect(() => {
-    if (!product || !product.available) {
+    if (!entry || openOfferings.length === 0) {
       router.replace(buildConsumerEventHref('/cardapio', eventId));
     }
-  }, [product, router, eventId]);
+  }, [entry, openOfferings.length, router, eventId]);
 
-  if (!product || !product.available) {
+  useEffect(() => {
+    if (openOfferings.length === 1) {
+      setSelectedOfferingId(openOfferings[0].id);
+    }
+  }, [openOfferings]);
+
+  if (!entry || openOfferings.length === 0) {
     return <ConsumerLoading />;
   }
+
+  const { product } = entry;
+  const selectedEntry = selectedOffering
+    ? { product, offerings: [selectedOffering] }
+    : entry;
+  const activeVariants =
+    selectedOffering?.variants.filter((variant) => variant.available) ?? [];
 
   return (
     <div
@@ -110,20 +140,71 @@ export default function ProductPage({ params }: ProductPageProps) {
             </div>
 
             <div className="flex justify-end">
-              <ProductPriceDisplay product={product} />
+              <ProductPriceDisplay entry={selectedOffering ? selectedEntry : entry} />
             </div>
           </div>
         </div>
 
-        <section className="space-y-3">
-          <h3 className="font-bold text-lg text-foreground">Escolha a opção</h3>
+        {openOfferings.length > 1 && (
+          <section className="space-y-3">
+            <h3 className="font-bold text-lg text-foreground">Escolha a barraca</h3>
+            {openOfferings.map((offering) => {
+              const stall = getStallById(stalls, offering.stallId);
+              if (!stall) return null;
+              const isSelected = selectedOffering?.id === offering.id;
 
-          {product.variants
-            .filter((variant) => variant.available)
-            .map((variant) => (
-              <MenuVariantRow key={variant.id} product={product} variant={variant} />
+              return (
+                <button
+                  key={offering.id}
+                  type="button"
+                  onClick={() => setSelectedOfferingId(offering.id)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors',
+                    isSelected
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-card'
+                  )}
+                >
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-xl text-white"
+                    style={{ backgroundColor: stall.color }}
+                  >
+                    <Store className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-foreground">{stall.name}</p>
+                    <p className="text-sm text-muted-foreground">{stall.responsible}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </section>
+        )}
+
+        {selectedOffering && selectedStall && (
+          <section className="space-y-3">
+            <div>
+              <h3 className="font-bold text-lg text-foreground">Escolha a opção</h3>
+              <p className="text-sm text-muted-foreground">{selectedStall.name}</p>
+            </div>
+
+            {activeVariants.map((variant) => (
+              <OfferingVariantRow
+                key={`${selectedOffering.id}-${variant.templateId}`}
+                product={product}
+                offering={selectedOffering}
+                stall={selectedStall}
+                variant={variant}
+              />
             ))}
-        </section>
+          </section>
+        )}
+
+        {openOfferings.length > 1 && !selectedOffering && (
+          <p className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground">
+            Selecione uma barraca para ver as opções disponíveis.
+          </p>
+        )}
       </main>
 
       <FloatingOrderButton

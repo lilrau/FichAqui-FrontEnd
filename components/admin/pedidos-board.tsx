@@ -4,16 +4,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
-import type { Order } from '@/lib/types/event-domain';
 import { statusConfig } from '@/lib/order-status-config';
 import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type StatusFilter = 'all' | 'available' | 'delivered';
 
 export function PedidosBoard({ eventId }: { eventId: string }) {
-  const { getOrdersByEventId, updateOrderStatus } = useEventStore();
+  const { getOrdersByEventId } = useEventStore();
   const orders = getOrdersByEventId(eventId);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [newOrderAlert, setNewOrderAlert] = useState(false);
@@ -29,11 +27,6 @@ export function PedidosBoard({ eventId }: { eventId: string }) {
   const filteredOrders = orders.filter(
     (order) => filter === 'all' || order.status === filter
   );
-
-  const getNextStatus = (current: Order['status']): Order['status'] | null => {
-    if (current === 'available') return 'delivered';
-    return null;
-  };
 
   const formatTime = (date: Date) => {
     const minutes = Math.floor((Date.now() - date.getTime()) / 1000 / 60);
@@ -107,7 +100,6 @@ export function PedidosBoard({ eventId }: { eventId: string }) {
           {filteredOrders.map((order, index) => {
             const status = statusConfig[order.status];
             const Icon = status.icon;
-            const nextStatus = getNextStatus(order.status);
 
             return (
               <motion.div
@@ -148,26 +140,25 @@ export function PedidosBoard({ eventId }: { eventId: string }) {
                 </div>
 
                 <div className="mt-4 space-y-1">
-                  {order.items.map((cartItem) => (
-                    <div key={cartItem.item.id} className="flex items-center gap-2 text-sm">
-                      <span className="text-lg">{cartItem.item.image}</span>
-                      <span className="font-medium text-foreground">{cartItem.quantity}x</span>
-                      <span className="text-muted-foreground">{cartItem.item.name}</span>
-                    </div>
-                  ))}
+                  {order.items.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Itens não detalhados</p>
+                  ) : (
+                    order.items.map((cartItem) => (
+                      <div key={cartItem.item.id} className="flex items-center gap-2 text-sm">
+                        <span className="text-lg">{cartItem.item.image}</span>
+                        <span className="font-medium text-foreground">{cartItem.quantity}x</span>
+                        <span className="text-muted-foreground">
+                          {cartItem.item.name}
+                          <span className="text-xs"> · {cartItem.item.stallName}</span>
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                   <span className="font-bold text-foreground">R$ {order.total.toFixed(2)}</span>
-                  {nextStatus && (
-                    <Button
-                      size="sm"
-                      onClick={() => updateOrderStatus(order.id, nextStatus)}
-                      className="rounded-xl"
-                    >
-                      Confirmar entrega
-                    </Button>
-                  )}
+                  <span className="text-xs text-muted-foreground">Somente leitura</span>
                 </div>
               </motion.div>
             );

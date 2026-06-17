@@ -1,14 +1,14 @@
-import type { MenuProduct } from '@/lib/mock-data';
-import { getProductPriceParts } from '@/lib/menu-utils';
+import type { CardapioProduct } from '@/lib/mock-data';
+import { getCardapioPriceParts } from '@/lib/menu-utils';
 import { cn } from '@/lib/utils';
 
 interface ProductPriceDisplayProps {
-  product: MenuProduct;
+  entry: CardapioProduct;
   className?: string;
 }
 
-export function ProductPriceDisplay({ product, className }: ProductPriceDisplayProps) {
-  const parts = getProductPriceParts(product);
+export function ProductPriceDisplay({ entry, className }: ProductPriceDisplayProps) {
+  const parts = getCardapioPriceParts(entry);
 
   if (parts.kind === 'unavailable') {
     return (
@@ -39,5 +39,18 @@ export function ProductPriceDisplay({ product, className }: ProductPriceDisplayP
       </span>
       <span className="text-xl font-bold leading-tight">{parts.price}</span>
     </div>
+  );
+}
+
+interface VariantPriceDisplayProps {
+  price: number;
+  className?: string;
+}
+
+export function VariantPriceDisplay({ price, className }: VariantPriceDisplayProps) {
+  return (
+    <span className={cn('text-sm font-bold text-primary', className)}>
+      {price === 0 ? 'Grátis' : `R$ ${price.toFixed(2)}`}
+    </span>
   );
 }

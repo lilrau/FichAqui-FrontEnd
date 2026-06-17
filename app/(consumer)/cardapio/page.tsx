@@ -16,7 +16,7 @@ import {
 import { useEventStore } from '@/lib/event-store';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useActiveEvent, useEventId } from '@/lib/event-context';
-import { productMatchesSearch } from '@/lib/menu-utils';
+import { cardapioMatchesSearch } from '@/lib/menu-utils';
 import { MenuItemCard } from '@/components/menu-item-card';
 import { CategoryPills } from '@/components/category-pills';
 import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
@@ -31,8 +31,8 @@ function CardapioContent() {
   const { itemCount, orders } = useCart();
   const { activeEvent } = useActiveEvent();
   const eventId = useEventId();
-  const { getMenuProductsByEventId } = useEventStore();
-  const menuProducts = getMenuProductsByEventId(eventId);
+  const { getCardapioByEventId } = useEventStore();
+  const cardapio = getCardapioByEventId(eventId);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,10 +43,10 @@ function CardapioContent() {
     return fichas.length;
   }, [orders]);
 
-  const filteredProducts = menuProducts.filter((product) => {
-    const matchesCategory = !activeCategory || product.category === activeCategory;
-    const matchesSearch = !searchQuery || productMatchesSearch(product, searchQuery);
-    return matchesCategory && matchesSearch && product.available;
+  const filteredCardapio = cardapio.filter((entry) => {
+    const matchesCategory = !activeCategory || entry.product.category === activeCategory;
+    const matchesSearch = !searchQuery || cardapioMatchesSearch(entry, searchQuery);
+    return matchesCategory && matchesSearch;
   });
 
   const handleCheckout = () => {
@@ -63,10 +63,8 @@ function CardapioContent() {
         itemCount > 0 ? 'pb-56' : 'pb-24'
       )}
     >
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border">
         <div className="px-4 py-3">
-          {/* Top Row */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="h-10 w-10 shrink-0 rounded-xl bg-primary flex items-center justify-center text-xl">
@@ -133,7 +131,6 @@ function CardapioContent() {
             </div>
           </div>
 
-          {/* Search Bar */}
           <div className="relative mt-3">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -146,7 +143,6 @@ function CardapioContent() {
           </div>
         </div>
 
-        {/* Categories */}
         <div className="px-4 pb-3">
           <CategoryPills
             categories={categories}
@@ -156,9 +152,8 @@ function CardapioContent() {
         </div>
       </header>
 
-      {/* Menu Grid */}
       <main className="px-4 py-4">
-        {filteredProducts.length === 0 ? (
+        {filteredCardapio.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center text-4xl">
               🔍
@@ -184,15 +179,15 @@ function CardapioContent() {
                 },
               }}
             >
-              {filteredProducts.map((product) => (
+              {filteredCardapio.map((entry) => (
                 <motion.div
-                  key={product.id}
+                  key={entry.product.id}
                   variants={{
                     hidden: { opacity: 0, y: 20 },
                     visible: { opacity: 1, y: 0 },
                   }}
                 >
-                  <MenuItemCard product={product} />
+                  <MenuItemCard entry={entry} />
                 </motion.div>
               ))}
             </motion.div>
@@ -205,7 +200,6 @@ function CardapioContent() {
         onClick={() => router.push('/pedido')}
       />
 
-      {/* Cart Sheet */}
       <CartSheet
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}

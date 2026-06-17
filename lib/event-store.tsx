@@ -9,34 +9,41 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { buildMenuItemsFromProducts } from '@/lib/catalog/menu-catalog';
 import {
-  createDefaultMenuProductsForEvent,
+  buildCardapioForEvent,
+  buildMenuItemsFromOfferings,
+} from '@/lib/catalog/menu-catalog';
+import { seedCatalogProducts } from '@/lib/seed/global-catalog';
+import {
+  createDefaultOfferingForEvent,
   createDefaultStallsForEvent,
   seedEvents,
-  seedMenuProducts,
+  seedOfferings,
   seedOrders,
   seedStalls,
 } from '@/lib/seed';
 import {
   migrateEvents,
-  migrateMenuProducts,
+  migrateOfferings,
   migrateOrders,
   migrateStalls,
 } from '@/lib/seed/migrate-store';
 import { loadJson, saveJson } from '@/lib/storage';
 import type {
+  CardapioProduct,
+  CatalogProduct,
   Event,
   MenuItem,
   MenuProduct,
+  Offering,
   Order,
-  OrderStatus,
   Stall,
 } from '@/lib/types/event-domain';
 
 const EVENTS_KEY = 'event-app:events';
 const STALLS_KEY = 'event-app:stalls';
-const PRODUCTS_KEY = 'event-app:products';
+const OFFERINGS_KEY = 'event-app:offerings';
+const LEGACY_PRODUCTS_KEY = 'event-app:products';
 const ORDERS_KEY = 'event-app:orders';
 
 export type CreateEventInput = Omit<Event, 'id'> & { id?: string };
@@ -45,11 +52,14 @@ interface EventStoreContextType {
   hydrated: boolean;
   events: Event[];
   stalls: Stall[];
-  menuProducts: MenuProduct[];
+  catalogProducts: CatalogProduct[];
+  offerings: Offering[];
   orders: Order[];
   getEventById: (id: string) => Event | undefined;
   getStallsByEventId: (eventId: string) => Stall[];
-  getMenuProductsByEventId: (eventId: string) => MenuProduct[];
+  getOfferingsByEventId: (eventId: string) => Offering[];
+  getOfferingsByStallId: (stallId: string) => Offering[];
+  getCardapioByEventId: (eventId: string) => CardapioProduct[];
   getMenuItemsByEventId: (eventId: string) => MenuItem[];
   getOrdersByEventId: (eventId: string) => Order[];
   getPublicEvents: () => Event[];
@@ -60,8 +70,10 @@ interface EventStoreContextType {
   addStall: (eventId: string, stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }) => Stall;
   updateStall: (stallId: string, patch: Partial<Stall>) => void;
   deleteStall: (stallId: string) => void;
+  addOffering: (offering: Offering) => Offering;
+  updateOffering: (offeringId: string, patch: Partial<Offering>) => void;
+  deleteOffering: (offeringId: string) => void;
   addOrder: (order: Order) => Order;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
 }
 
 const EventStoreContext = createContext<EventStoreContextType | undefined>(undefined);
@@ -69,14 +81,18 @@ const EventStoreContext = createContext<EventStoreContextType | undefined>(undef
 export function EventStoreProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<Event[]>(seedEvents);
   const [stalls, setStalls] = useState<Stall[]>(seedStalls);
-  const [menuProducts, setMenuProducts] = useState<MenuProduct[]>(seedMenuProducts);
+  const [offerings, setOfferings] = useState<Offering[]>(seedOfferings);
   const [orders, setOrders] = useState<Order[]>(seedOrders);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setEvents(migrateEvents(loadJson<Event[] | null>(EVENTS_KEY, null)));
     setStalls(migrateStalls(loadJson<Stall[] | null>(STALLS_KEY, null)));
-    setMenuProducts(migrateMenuProducts(loadJson<MenuProduct[] | null>(PRODUCTS_KEY, null)));
+
+    const storedOfferings = loadJson<Offering[] | MenuProduct[] | null>(OFFERINGS_KEY, null);
+    const legacyProducts = loadJson<MenuProduct[] | null>(LEGACY_PRODUCTS_KEY, null);
+    setOfferings(migrateOfferings(storedOfferings ?? legacyProducts));
+
     setOrders(migrateOrders(loadJson<Order[] | null>(ORDERS_KEY, null)));
     setHydrated(true);
   }, []);
@@ -93,8 +109,8 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    saveJson(PRODUCTS_KEY, menuProducts);
-  }, [menuProducts, hydrated]);
+    saveJson(OFFERINGS_KEY, offerings);
+  }, [offerings, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -102,51 +118,63 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
   }, [orders, hydrated]);
 
   const getEventById = useCallback(
-    (id: string) => events.find((e) => e.id === id),
+    (id: string) => events.find((event) => event.id === id),
     [events]
   );
 
   const getStallsByEventId = useCallback(
-    (eventId: string) => stalls.filter((s) => s.eventId === eventId),
+    (eventId: string) => stalls.filter((stall) => stall.eventId === eventId),
     [stalls]
   );
 
-  const getMenuProductsByEventId = useCallback(
-    (eventId: string) => menuProducts.filter((p) => p.eventId === eventId),
-    [menuProducts]
+  const getOfferingsByEventId = useCallback(
+    (eventId: string) => offerings.filter((offering) => offering.eventId === eventId),
+    [offerings]
+  );
+
+  const getOfferingsByStallId = useCallback(
+    (stallId: string) => offerings.filter((offering) => offering.stallId === stallId),
+    [offerings]
+  );
+
+  const getCardapioByEventId = useCallback(
+    (eventId: string) =>
+      buildCardapioForEvent(seedCatalogProducts, offerings, stalls, eventId),
+    [offerings, stalls]
   );
 
   const getMenuItemsByEventId = useCallback(
-    (eventId: string) => buildMenuItemsFromProducts(getMenuProductsByEventId(eventId)),
-    [getMenuProductsByEventId]
+    (eventId: string) => {
+      const eventOfferings = offerings.filter((offering) => offering.eventId === eventId);
+      const eventStalls = stalls.filter((stall) => stall.eventId === eventId);
+      return buildMenuItemsFromOfferings(seedCatalogProducts, eventOfferings, eventStalls);
+    },
+    [offerings, stalls]
   );
 
   const getOrdersByEventId = useCallback(
     (eventId: string) =>
       orders
-        .filter((o) => o.eventId === eventId)
+        .filter((order) => order.eventId === eventId)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
     [orders]
   );
 
   const getPublicEvents = useCallback(() => {
-    return events.filter(
-      (e) => e.status === 'active' || e.status === 'published'
-    );
+    return events.filter((event) => event.status === 'active' || event.status === 'published');
   }, [events]);
 
   const getEventsByCityId = useCallback(
     (cityId: string, options?: { publicOnly?: boolean }) => {
-      const list = events.filter((e) => e.cityId === cityId);
+      const list = events.filter((event) => event.cityId === cityId);
       if (!options?.publicOnly) return list;
-      return list.filter((e) => e.status === 'active' || e.status === 'published');
+      return list.filter((event) => event.status === 'active' || event.status === 'published');
     },
     [events]
   );
 
   const getEventsByOrganizerId = useCallback(
-    (organizerId: string) =>
-      events.filter((e) => e.organizerId === organizerId),
+    (organizerId: string) => events.filter((event) => event.organizerId === organizerId),
     [events]
   );
 
@@ -159,26 +187,20 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     } as Event;
 
     const defaultStalls = createDefaultStallsForEvent(id);
-    const defaultProducts = createDefaultMenuProductsForEvent(
-      id,
-      defaultStalls[0].id
-    );
+    const defaultOffering = createDefaultOfferingForEvent(id, defaultStalls[0].id);
 
     setEvents((prev) => [...prev, event]);
     setStalls((prev) => [...prev, ...defaultStalls]);
-    setMenuProducts((prev) => [...prev, ...defaultProducts]);
+    setOfferings((prev) => [...prev, defaultOffering]);
     return event;
   }, []);
 
   const updateEvent = useCallback((id: string, patch: Partial<Event>) => {
-    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    setEvents((prev) => prev.map((event) => (event.id === id ? { ...event, ...patch } : event)));
   }, []);
 
   const addStall = useCallback(
-    (
-      eventId: string,
-      stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }
-    ): Stall => {
+    (eventId: string, stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }): Stall => {
       const newStall: Stall = {
         id: stall.id ?? `stall-${Date.now()}`,
         eventId,
@@ -197,12 +219,30 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
 
   const updateStall = useCallback((stallId: string, patch: Partial<Stall>) => {
     setStalls((prev) =>
-      prev.map((s) => (s.id === stallId ? { ...s, ...patch } : s))
+      prev.map((stall) => (stall.id === stallId ? { ...stall, ...patch } : stall))
     );
   }, []);
 
   const deleteStall = useCallback((stallId: string) => {
-    setStalls((prev) => prev.filter((s) => s.id !== stallId));
+    setStalls((prev) => prev.filter((stall) => stall.id !== stallId));
+    setOfferings((prev) => prev.filter((offering) => offering.stallId !== stallId));
+  }, []);
+
+  const addOffering = useCallback((offering: Offering) => {
+    setOfferings((prev) => [...prev, offering]);
+    return offering;
+  }, []);
+
+  const updateOffering = useCallback((offeringId: string, patch: Partial<Offering>) => {
+    setOfferings((prev) =>
+      prev.map((offering) =>
+        offering.id === offeringId ? { ...offering, ...patch } : offering
+      )
+    );
+  }, []);
+
+  const deleteOffering = useCallback((offeringId: string) => {
+    setOfferings((prev) => prev.filter((offering) => offering.id !== offeringId));
   }, []);
 
   const addOrder = useCallback((order: Order) => {
@@ -210,22 +250,19 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     return order;
   }, []);
 
-  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-    );
-  }, []);
-
   const value = useMemo(
     () => ({
       hydrated,
       events,
       stalls,
-      menuProducts,
+      catalogProducts: seedCatalogProducts,
+      offerings,
       orders,
       getEventById,
       getStallsByEventId,
-      getMenuProductsByEventId,
+      getOfferingsByEventId,
+      getOfferingsByStallId,
+      getCardapioByEventId,
       getMenuItemsByEventId,
       getOrdersByEventId,
       getPublicEvents,
@@ -236,18 +273,22 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       addStall,
       updateStall,
       deleteStall,
+      addOffering,
+      updateOffering,
+      deleteOffering,
       addOrder,
-      updateOrderStatus,
     }),
     [
       hydrated,
       events,
       stalls,
-      menuProducts,
+      offerings,
       orders,
       getEventById,
       getStallsByEventId,
-      getMenuProductsByEventId,
+      getOfferingsByEventId,
+      getOfferingsByStallId,
+      getCardapioByEventId,
       getMenuItemsByEventId,
       getOrdersByEventId,
       getPublicEvents,
@@ -258,8 +299,10 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       addStall,
       updateStall,
       deleteStall,
+      addOffering,
+      updateOffering,
+      deleteOffering,
       addOrder,
-      updateOrderStatus,
     ]
   );
 

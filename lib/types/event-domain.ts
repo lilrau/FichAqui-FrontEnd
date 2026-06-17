@@ -1,3 +1,35 @@
+export interface CatalogVariantTemplate {
+  id: string;
+  label: string;
+}
+
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  image: string;
+  badge?: string;
+  variantTemplates: CatalogVariantTemplate[];
+}
+
+export interface OfferingVariant {
+  templateId: string;
+  price: number;
+  available: boolean;
+  badge?: string;
+}
+
+export interface Offering {
+  id: string;
+  eventId: string;
+  stallId: string;
+  productId: string;
+  available: boolean;
+  variants: OfferingVariant[];
+}
+
+/** @deprecated Use CatalogProduct + Offering */
 export interface MenuVariant {
   id: string;
   label: string;
@@ -6,6 +38,7 @@ export interface MenuVariant {
   badge?: string;
 }
 
+/** @deprecated Use CatalogProduct + Offering */
 export interface MenuProduct {
   id: string;
   eventId: string;
@@ -22,6 +55,7 @@ export interface MenuProduct {
 export interface MenuItem {
   id: string;
   productId: string;
+  offeringId: string;
   name: string;
   description: string;
   price: number;
@@ -30,7 +64,13 @@ export interface MenuItem {
   badge?: string;
   available: boolean;
   stallId: string;
+  stallName: string;
   variantLabel?: string;
+}
+
+export interface CardapioProduct {
+  product: CatalogProduct;
+  offerings: Offering[];
 }
 
 export interface Category {
@@ -70,6 +110,7 @@ export interface Ficha {
   itemName: string;
   itemImage: string;
   stallId: string;
+  stallName: string;
   qrCode: string;
   status: OrderStatus;
 }
@@ -93,15 +134,18 @@ export interface Event {
 }
 
 export function getFichasFromOrder(order: Order): Ficha[] {
-  return order.items.map((cartItem, index) => ({
-    id: `${order.id}-ficha-${index}`,
-    orderId: order.id,
-    itemName: cartItem.item.name,
-    itemImage: cartItem.item.image,
-    stallId: cartItem.item.stallId,
-    qrCode: `${order.qrCode}-${cartItem.item.id}`,
-    status: order.status,
-  }));
+  return order.items.flatMap((cartItem, index) =>
+    Array.from({ length: cartItem.quantity }, (_, unitIndex) => ({
+      id: `${order.id}-ficha-${index}-${unitIndex}`,
+      orderId: order.id,
+      itemName: cartItem.item.name,
+      itemImage: cartItem.item.image,
+      stallId: cartItem.item.stallId,
+      stallName: cartItem.item.stallName,
+      qrCode: `${order.qrCode}-${cartItem.item.id}-${unitIndex}`,
+      status: order.status,
+    }))
+  );
 }
 
 export function isFichaValid(ficha: Ficha): boolean {

@@ -83,6 +83,7 @@ export default function HistoricoPage() {
                         <span className="text-lg">{cartItem.item.image}</span>
                         <span className="text-muted-foreground">
                           {cartItem.quantity}x {cartItem.item.name}
+                          <span className="text-xs"> · {cartItem.item.stallName}</span>
                         </span>
                       </div>
                     ))}

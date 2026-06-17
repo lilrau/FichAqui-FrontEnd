@@ -11,11 +11,13 @@ import {
   Trash2,
   X,
   Check,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { seedCategories as categories } from '@/lib/seed/categories';
 import { useEventStore } from '@/lib/event-store';
 import type { Stall } from '@/lib/types/event-domain';
 import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
+import { StallOfferingsModal } from '@/components/admin/stall-offerings-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -27,9 +29,11 @@ const colorOptions = [
 ];
 
 export function BarracasManager({ eventId }: { eventId: string }) {
-  const { getStallsByEventId, addStall, updateStall, deleteStall } = useEventStore();
+  const { getStallsByEventId, getOfferingsByStallId, addStall, updateStall, deleteStall } =
+    useEventStore();
   const stallsList = getStallsByEventId(eventId);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [offeringsStall, setOfferingsStall] = useState<Stall | null>(null);
   const [editingStall, setEditingStall] = useState<Stall | null>(null);
   const [newStall, setNewStall] = useState<Partial<Stall>>({
     name: '',
@@ -158,6 +162,8 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                   <div className="mt-1">
                     <span className="text-xs text-muted-foreground capitalize">
                       {categories.find((c) => c.id === stall.category)?.name || stall.category}
+                      {' · '}
+                      {getOfferingsByStallId(stall.id).length} produto(s)
                     </span>
                   </div>
                 </div>
@@ -169,6 +175,15 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                   variant="outline"
                   size="sm"
                   className="flex-1 rounded-lg"
+                  onClick={() => setOfferingsStall(stall)}
+                >
+                  <UtensilsCrossed className="mr-1 h-4 w-4" />
+                  Cardápio
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg"
                   onClick={() => handleToggleStatus(stall.id)}
                 >
                   {stall.status === 'open' ? 'Fechar' : 'Abrir'}
@@ -321,6 +336,16 @@ export function BarracasManager({ eventId }: { eventId: string }) {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {offeringsStall && (
+          <StallOfferingsModal
+            key={offeringsStall.id}
+            stall={offeringsStall}
+            onClose={() => setOfferingsStall(null)}
+          />
         )}
       </AnimatePresence>
     </div>
