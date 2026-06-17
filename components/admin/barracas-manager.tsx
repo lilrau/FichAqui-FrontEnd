@@ -13,7 +13,6 @@ import {
   Check,
   UtensilsCrossed,
 } from 'lucide-react';
-import { seedCategories as categories } from '@/lib/seed/categories';
 import { useEventStore } from '@/lib/event-store';
 import type { Stall } from '@/lib/types/event-domain';
 import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
@@ -29,7 +28,7 @@ const colorOptions = [
 ];
 
 export function BarracasManager({ eventId }: { eventId: string }) {
-  const { getStallsByEventId, getOfferingsByStallId, addStall, updateStall, deleteStall } =
+  const { categories, getStallsByEventId, getOfferingsByStallId, addStall, updateStall, deleteStall } =
     useEventStore();
   const stallsList = getStallsByEventId(eventId);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,9 +43,9 @@ export function BarracasManager({ eventId }: { eventId: string }) {
     stock: 100,
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editingStall) {
-      updateStall(editingStall.id, {
+      await updateStall(editingStall.id, {
         name: newStall.name || editingStall.name,
         category: newStall.category || editingStall.category,
         responsible: newStall.responsible || '',
@@ -55,7 +54,7 @@ export function BarracasManager({ eventId }: { eventId: string }) {
         stock: newStall.stock || 100,
       });
     } else {
-      addStall(eventId, {
+      await addStall(eventId, {
         name: newStall.name || 'Nova Barraca',
         category: newStall.category || 'comidas',
         responsible: newStall.responsible || '',
@@ -71,10 +70,10 @@ export function BarracasManager({ eventId }: { eventId: string }) {
     deleteStall(id);
   };
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleStatus = async (id: string) => {
     const stall = stallsList.find((s) => s.id === id);
     if (stall) {
-      updateStall(id, { status: stall.status === 'open' ? 'closed' : 'open' });
+      await updateStall(id, { status: stall.status === 'open' ? 'closed' : 'open' });
     }
   };
 

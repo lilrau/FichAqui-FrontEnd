@@ -6,13 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { LogIn, MapPin, Search, ShoppingBag, Wallet } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import {
-  categories,
-  mockWalletBalance,
-  getFichasFromOrder,
-  isFichaValid,
-  mockAvailableFichas,
-} from '@/lib/mock-data';
+import { isFichaValid } from '@/lib/mock-data';
 import { useEventStore } from '@/lib/event-store';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useActiveEvent, useEventId } from '@/lib/event-context';
@@ -23,25 +17,29 @@ import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-context';
+import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
+import { useUserOrders } from '@/lib/user-orders-context';
+import { useConsumerEventId } from '@/lib/consumer-scope';
 import { cn } from '@/lib/utils';
 
 function CardapioContent() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
-  const { itemCount, orders } = useCart();
+  const { balance } = useWallet();
+  const { itemCount } = useCart();
+  const consumerEventId = useConsumerEventId();
+  const { getAvailableFichasForEvent } = useUserOrders();
   const { activeEvent } = useActiveEvent();
   const eventId = useEventId();
-  const { getCardapioByEventId } = useEventStore();
+  const { getCardapioByEventId, categories } = useEventStore();
   const cardapio = getCardapioByEventId(eventId);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const availableFichasCount = useMemo(() => {
-    const fromOrders = orders.flatMap(getFichasFromOrder).filter(isFichaValid);
-    const fichas = fromOrders.length > 0 ? fromOrders : mockAvailableFichas;
-    return fichas.length;
-  }, [orders]);
+    return getAvailableFichasForEvent(consumerEventId).filter(isFichaValid).length;
+  }, [getAvailableFichasForEvent, consumerEventId]);
 
   const filteredCardapio = cardapio.filter((entry) => {
     const matchesCategory = !activeCategory || entry.product.category === activeCategory;
@@ -54,7 +52,7 @@ function CardapioContent() {
     router.push('/pedido');
   };
 
-  const formattedBalance = mockWalletBalance.toFixed(2).replace('.', ',');
+  const formattedBalance = formatWalletBalance(balance);
 
   return (
     <div

@@ -6,12 +6,13 @@ import { useSearchParams } from 'next/navigation';
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConsumerLoading } from '@/components/consumer-loading';
-import { useCart } from '@/lib/cart-context';
-import { Ficha, mockWalletBalance } from '@/lib/mock-data';
+import type { Ficha } from '@/lib/types/event-domain';
+import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
 import { FichaCard } from '@/components/ficha-card';
-import { useConsumerScope, type ConsumerScope } from '@/lib/consumer-scope';
+import { useConsumerScope, useConsumerEventId, type ConsumerScope } from '@/lib/consumer-scope';
 import { useActiveEvent } from '@/lib/event-context';
-import { isFichaExcludedFromEvent, resolveWalletFichas } from '@/lib/wallet-fichas';
+import { isFichaExcludedFromEvent } from '@/lib/wallet-fichas';
+import { useUserOrders } from '@/lib/user-orders-context';
 import { cn } from '@/lib/utils';
 
 const mockTransactions = [
@@ -157,13 +158,18 @@ function CarteiraContent() {
     searchParams.get('tab') === 'fichas' ? 'fichas' : 'movimentacoes';
   const initialTabIndex = tabs.findIndex((t) => t.id === initialTab);
 
-  const { orders } = useCart();
+  const { balance, loadError } = useWallet();
   const scope = useConsumerScope();
+  const consumerEventId = useConsumerEventId();
   const { activeEvent } = useActiveEvent();
+  const { getAvailableFichasForEvent } = useUserOrders();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [[tabIndex, direction], setTabPosition] = useState([initialTabIndex, 0]);
 
-  const availableFichas = useMemo(() => resolveWalletFichas(orders), [orders]);
+  const availableFichas = useMemo(
+    () => getAvailableFichasForEvent(consumerEventId),
+    [getAvailableFichasForEvent, consumerEventId]
+  );
 
   const selectTab = (tabId: TabId) => {
     const newIndex = tabs.findIndex((t) => t.id === tabId);
@@ -191,8 +197,11 @@ function CarteiraContent() {
             <span className="text-sm font-medium">Saldo disponível</span>
           </div>
           <p className="mt-2 text-4xl font-bold">
-            R$ {mockWalletBalance.toFixed(2).replace('.', ',')}
+            R$ {formatWalletBalance(balance)}
           </p>
+          {loadError && (
+            <p className="mt-2 text-sm text-primary-foreground/80">{loadError}</p>
+          )}
           <Button
             variant="secondary"
             className="mt-5 w-full h-12 rounded-xl font-semibold"

@@ -2,6 +2,7 @@
 
 import { AlertCircle, Share2 } from 'lucide-react';
 import { Ficha } from '@/lib/mock-data';
+import type { SavedPaymentCard } from '@/lib/types/wallet';
 import { statusConfig } from '@/lib/order-status-config';
 import { QrCodeMock } from '@/components/qr-code-mock';
 import { Button } from '@/components/ui/button';

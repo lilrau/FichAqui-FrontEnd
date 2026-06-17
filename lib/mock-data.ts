@@ -34,20 +34,9 @@ export { seedCatalogProducts as catalogProducts } from '@/lib/seed/global-catalo
 export { seedOfferings as offerings } from '@/lib/seed/offerings';
 
 export type { CardBrand, CardNetwork } from './card-brand';
-
-export interface SavedPaymentCard {
-  id: string;
-  brand: CardBrand;
-  lastFour: string;
-  holderName: string;
-  holderCpf: string;
-  expiryMonth: string;
-  expiryYear: string;
-  isDefault: boolean;
-}
-
-import type { CardBrand } from './card-brand';
+export type { SavedPaymentCard } from '@/lib/types/wallet';
 import type { Ficha } from '@/lib/types/event-domain';
+import type { SavedPaymentCard } from '@/lib/types/wallet';
 
 export const mockAvailableFichas: Ficha[] = [
   {

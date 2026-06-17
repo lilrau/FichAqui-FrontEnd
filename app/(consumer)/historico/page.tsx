@@ -3,14 +3,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useCart } from '@/lib/cart-context';
-import { getFichasFromOrder } from '@/lib/mock-data';
+import { useAuth } from '@/lib/auth-context';
+import { useConsumerEventId } from '@/lib/consumer-scope';
+import { getFichasFromConsumerOrder } from '@/lib/types/consumer-order';
+import { useUserOrders } from '@/lib/user-orders-context';
 import { statusConfig } from '@/lib/order-status-config';
 import { FichaCard } from '@/components/ficha-card';
 
 export default function HistoricoPage() {
-  const { orders } = useCart();
+  const { isAuthenticated } = useAuth();
+  const eventId = useConsumerEventId();
+  const { orders, loadError, hydrated, getOrdersByEventId } = useUserOrders();
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  const visibleOrders = eventId ? getOrdersByEventId(eventId) : orders;
 
   const formatTime = (date: Date) => {
     const minutes = Math.floor((Date.now() - date.getTime()) / 1000 / 60);
@@ -32,7 +38,19 @@ export default function HistoricoPage() {
       </header>
 
       <main className="px-4 py-6">
-        {orders.length === 0 ? (
+        {!isAuthenticated ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="font-semibold text-foreground">Entre para ver seu histórico</p>
+          </div>
+        ) : !hydrated ? (
+          <div className="flex justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : loadError ? (
+          <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {loadError}
+          </p>
+        ) : visibleOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center text-4xl">
               📋
@@ -44,10 +62,10 @@ export default function HistoricoPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order, index) => {
+            {visibleOrders.map((order, index) => {
               const status = statusConfig[order.status];
               const Icon = status.icon;
-              const fichas = getFichasFromOrder(order);
+              const fichas = getFichasFromConsumerOrder(order);
               const isDelivered = order.status === 'delivered';
               const isExpanded = !isDelivered && expandedOrderId === order.id;
 
@@ -75,15 +93,15 @@ export default function HistoricoPage() {
                   </div>
 
                   <div className="mt-4 space-y-2">
-                    {order.items.map((cartItem) => (
+                    {order.summaryItems.map((item) => (
                       <div
-                        key={cartItem.item.id}
+                        key={`${order.id}-${item.name}-${item.stallName}`}
                         className="flex items-center gap-2 text-sm"
                       >
-                        <span className="text-lg">{cartItem.item.image}</span>
+                        <span className="text-lg">🎫</span>
                         <span className="text-muted-foreground">
-                          {cartItem.quantity}x {cartItem.item.name}
-                          <span className="text-xs"> · {cartItem.item.stallName}</span>
+                          {item.quantity}x {item.name}
+                          <span className="text-xs"> · {item.stallName}</span>
                         </span>
                       </div>
                     ))}

@@ -105,7 +105,7 @@ export default function HomePage() {
                 variant="ghost"
                 size="sm"
                 className="rounded-xl h-10"
-                onClick={logout}
+                onClick={() => void logout()}
               >
                 Sair
               </Button>

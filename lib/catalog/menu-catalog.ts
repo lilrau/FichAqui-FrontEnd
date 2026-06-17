@@ -10,6 +10,15 @@ export function buildMenuItemId(offeringId: string, templateId: string): string 
   return `${offeringId}:${templateId}`;
 }
 
+export function parseVariantIdFromMenuItem(menuItem: MenuItem): string {
+  const prefix = `${menuItem.offeringId}:`;
+  if (menuItem.id.startsWith(prefix)) {
+    return menuItem.id.slice(prefix.length);
+  }
+  const parts = menuItem.id.split(':');
+  return parts[parts.length - 1] ?? menuItem.id;
+}
+
 export function buildMenuItem(
   product: CatalogProduct,
   offering: Offering,

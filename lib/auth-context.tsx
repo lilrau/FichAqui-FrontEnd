@@ -6,19 +6,14 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { loadJson, saveJson } from '@/lib/storage';
-import {
-  findUserByCredentials,
-  type AppUser,
-  type UserRole,
-} from '@/lib/seed/users';
-
-const SESSION_KEY = 'event-app:session';
-
-type SessionUser = Omit<AppUser, 'password'>;
+import { loginApi, logoutApi, meApi } from '@/lib/api/auth';
+import { getErrorMessage } from '@/lib/api/errors';
+import { getAuthToken } from '@/lib/api/token';
+import type { SessionUser, UserRole } from '@/lib/types/user';
 
 interface AuthContextType {
   hydrated: boolean;
@@ -28,48 +23,62 @@ interface AuthContextType {
   login: (
     email: string,
     password: string
-  ) => { ok: true; user: SessionUser } | { ok: false; error: string };
-  logout: () => void;
+  ) => Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-function toSessionUser(user: AppUser): SessionUser {
-  const { password, ...session } = user;
-  void password;
-  return session;
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setUser(loadJson<SessionUser | null>(SESSION_KEY, null));
-    setHydrated(true);
-  }, []);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!hydrated) return;
-    saveJson(SESSION_KEY, user);
-  }, [user, hydrated]);
+    (async () => {
+      const token = getAuthToken();
+      if (!token) {
+        if (!cancelled) setHydrated(true);
+        return;
+      }
+
+      try {
+        const profile = await meApi();
+        if (!cancelled) setUser(profile);
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const hasRole = useCallback(
     (role: UserRole) => Boolean(user?.roles.includes(role)),
     [user]
   );
 
-  const login = useCallback((email: string, password: string) => {
-    const match = findUserByCredentials(email, password);
-    if (!match) {
-      return { ok: false as const, error: 'E-mail ou senha incorretos.' };
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const session = await loginApi(email, password);
+      setUser(session);
+      return { ok: true as const, user: session };
+    } catch (error) {
+      return { ok: false as const, error: getErrorMessage(error, 'E-mail ou senha incorretos.') };
     }
-    const session = toSessionUser(match);
-    setUser(session);
-    return { ok: true as const, user: session };
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await logoutApi();
+    } catch {
+      // Token already cleared on 401 or still remove locally.
+    }
     setUser(null);
   }, []);
 
@@ -95,3 +104,5 @@ export function useAuth() {
   }
   return ctx;
 }
+
+export type { SessionUser, UserRole };

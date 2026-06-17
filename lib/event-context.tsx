@@ -32,17 +32,27 @@ function resolveActiveEventId(
   adminEventId: string | null,
   queryEventId: string | null,
   storedId: string | null,
-  isEventValid: (id: string) => boolean
+  isEventValid: (id: string) => boolean,
+  events: Event[]
 ): string {
   const candidates = [adminEventId, queryEventId, storedId, DEFAULT_EVENT_ID];
   for (const id of candidates) {
     if (id && isEventValid(id)) return id;
   }
-  return DEFAULT_EVENT_ID;
+  const fallback =
+    events.find((event) => event.status === 'active' || event.status === 'published') ??
+    events[0];
+  return fallback?.id ?? DEFAULT_EVENT_ID;
 }
 
 export function EventProvider({ children }: { children: ReactNode }) {
-  const { getEventById, hydrated: storeHydrated } = useEventStore();
+  const {
+    getEventById,
+    hydrated: storeHydrated,
+    ensureEventLoaded,
+    isEventScopeLoaded,
+    events,
+  } = useEventStore();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -52,6 +62,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
 
   const [activeEventId, setActiveEventIdState] = useState(DEFAULT_EVENT_ID);
   const [hydrated, setHydrated] = useState(false);
+  const [scopeReady, setScopeReady] = useState(false);
 
   const isEventValid = useCallback(
     (id: string) => Boolean(getEventById(id)),
@@ -64,12 +75,32 @@ export function EventProvider({ children }: { children: ReactNode }) {
       adminEventId,
       eventFromQuery,
       readStoredActiveEventId(),
-      isEventValid
+      isEventValid,
+      events
     );
     setActiveEventIdState(resolved);
     writeStoredActiveEventId(resolved);
     setHydrated(true);
-  }, [storeHydrated, adminEventId, eventFromQuery, isEventValid]);
+  }, [storeHydrated, adminEventId, eventFromQuery, isEventValid, events]);
+
+  useEffect(() => {
+    if (!storeHydrated || !hydrated) return;
+
+    let cancelled = false;
+    setScopeReady(false);
+
+    ensureEventLoaded(activeEventId)
+      .then(() => {
+        if (!cancelled) setScopeReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setScopeReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storeHydrated, hydrated, activeEventId, ensureEventLoaded]);
 
   const setActiveEventId = useCallback(
     (id: string | null) => {
@@ -94,12 +125,12 @@ export function EventProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      hydrated,
+      hydrated: hydrated && scopeReady && isEventScopeLoaded(activeEventId),
       activeEventId,
       activeEvent,
       setActiveEventId,
     }),
-    [hydrated, activeEventId, activeEvent, setActiveEventId]
+    [hydrated, scopeReady, isEventScopeLoaded, activeEventId, activeEvent, setActiveEventId]
   );
 
   return (

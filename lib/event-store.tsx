@@ -6,55 +6,53 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { fetchCatalog } from '@/lib/api/catalog';
+import { createEventApi, fetchEvents, updateEventApi } from '@/lib/api/events';
+import {
+  fetchOfferings,
+  replaceStallOfferingsApi,
+  toUpsertOfferingPayload,
+} from '@/lib/api/offerings';
+import { createStallApi, fetchStalls, updateStallApi } from '@/lib/api/stalls';
+import { getErrorMessage } from '@/lib/api/errors';
 import {
   buildCardapioForEvent,
   buildMenuItemsFromOfferings,
 } from '@/lib/catalog/menu-catalog';
-import { seedCatalogProducts } from '@/lib/seed/global-catalog';
-import {
-  createDefaultOfferingForEvent,
-  createDefaultStallsForEvent,
-  seedEvents,
-  seedOfferings,
-  seedOrders,
-  seedStalls,
-} from '@/lib/seed';
-import {
-  migrateEvents,
-  migrateOfferings,
-  migrateOrders,
-  migrateStalls,
-} from '@/lib/seed/migrate-store';
 import { loadJson, saveJson } from '@/lib/storage';
+import { seedOrders } from '@/lib/seed';
 import type {
   CardapioProduct,
   CatalogProduct,
+  Category,
   Event,
   MenuItem,
-  MenuProduct,
   Offering,
   Order,
   Stall,
 } from '@/lib/types/event-domain';
 
-const EVENTS_KEY = 'event-app:events';
-const STALLS_KEY = 'event-app:stalls';
-const OFFERINGS_KEY = 'event-app:offerings';
-const LEGACY_PRODUCTS_KEY = 'event-app:products';
 const ORDERS_KEY = 'event-app:orders';
 
 export type CreateEventInput = Omit<Event, 'id'> & { id?: string };
 
 interface EventStoreContextType {
   hydrated: boolean;
+  loadError: string | null;
+  categories: Category[];
   events: Event[];
   stalls: Stall[];
   catalogProducts: CatalogProduct[];
   offerings: Offering[];
   orders: Order[];
+  isEventScopeLoaded: (eventId: string) => boolean;
+  ensureEventLoaded: (eventId: string) => Promise<void>;
+  refreshEvents: () => Promise<void>;
   getEventById: (id: string) => Event | undefined;
   getStallsByEventId: (eventId: string) => Stall[];
   getOfferingsByEventId: (eventId: string) => Offering[];
@@ -65,57 +63,138 @@ interface EventStoreContextType {
   getPublicEvents: () => Event[];
   getEventsByCityId: (cityId: string, options?: { publicOnly?: boolean }) => Event[];
   getEventsByOrganizerId: (organizerId: string) => Event[];
-  createEvent: (input: CreateEventInput) => Event;
-  updateEvent: (id: string, patch: Partial<Event>) => void;
-  addStall: (eventId: string, stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }) => Stall;
-  updateStall: (stallId: string, patch: Partial<Stall>) => void;
+  createEvent: (input: CreateEventInput) => Promise<Event>;
+  updateEvent: (id: string, patch: Partial<Event>) => Promise<void>;
+  addStall: (
+    eventId: string,
+    stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }
+  ) => Promise<Stall>;
+  updateStall: (stallId: string, patch: Partial<Stall>) => Promise<void>;
   deleteStall: (stallId: string) => void;
-  addOffering: (offering: Offering) => Offering;
-  updateOffering: (offeringId: string, patch: Partial<Offering>) => void;
-  deleteOffering: (offeringId: string) => void;
+  addOffering: (offering: Offering) => Promise<Offering>;
+  updateOffering: (offeringId: string, patch: Partial<Offering>) => Promise<void>;
+  deleteOffering: (offeringId: string) => Promise<void>;
   addOrder: (order: Order) => Order;
 }
 
 const EventStoreContext = createContext<EventStoreContextType | undefined>(undefined);
 
 export function EventStoreProvider({ children }: { children: ReactNode }) {
-  const [events, setEvents] = useState<Event[]>(seedEvents);
-  const [stalls, setStalls] = useState<Stall[]>(seedStalls);
-  const [offerings, setOfferings] = useState<Offering[]>(seedOfferings);
+  const { hydrated: authHydrated, user } = useAuth();
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [stalls, setStalls] = useState<Stall[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
+  const [offerings, setOfferings] = useState<Offering[]>([]);
   const [orders, setOrders] = useState<Order[]>(seedOrders);
   const [hydrated, setHydrated] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadedEventIds, setLoadedEventIds] = useState<Set<string>>(() => new Set());
+
+  const loadedEventIdsRef = useRef<Set<string>>(new Set());
+  const loadingEventIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    setEvents(migrateEvents(loadJson<Event[] | null>(EVENTS_KEY, null)));
-    setStalls(migrateStalls(loadJson<Stall[] | null>(STALLS_KEY, null)));
-
-    const storedOfferings = loadJson<Offering[] | MenuProduct[] | null>(OFFERINGS_KEY, null);
-    const legacyProducts = loadJson<MenuProduct[] | null>(LEGACY_PRODUCTS_KEY, null);
-    setOfferings(migrateOfferings(storedOfferings ?? legacyProducts));
-
-    setOrders(migrateOrders(loadJson<Order[] | null>(ORDERS_KEY, null)));
-    setHydrated(true);
+    setOrders(loadJson<Order[] | null>(ORDERS_KEY, null) ?? seedOrders);
   }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    saveJson(EVENTS_KEY, events);
-  }, [events, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    saveJson(STALLS_KEY, stalls);
-  }, [stalls, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    saveJson(OFFERINGS_KEY, offerings);
-  }, [offerings, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
     saveJson(ORDERS_KEY, orders);
   }, [orders, hydrated]);
+
+  const refreshEvents = useCallback(async () => {
+    const list = await fetchEvents(
+      user?.organizerId ? { organizerId: user.organizerId } : { publicOnly: true }
+    );
+    setEvents(list);
+  }, [user?.organizerId]);
+
+  useEffect(() => {
+    if (!authHydrated) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [catalog, eventList] = await Promise.all([
+          fetchCatalog(),
+          fetchEvents(
+            user?.organizerId ? { organizerId: user.organizerId } : { publicOnly: true }
+          ),
+        ]);
+        if (cancelled) return;
+        setCategories(catalog.categories);
+        setCatalogProducts(catalog.catalogProducts);
+        setEvents(eventList);
+        setLoadError(null);
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(getErrorMessage(error, 'Não foi possível carregar os dados.'));
+        }
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authHydrated, user?.id, user?.organizerId]);
+
+  const markEventLoaded = useCallback((eventId: string) => {
+    loadedEventIdsRef.current.add(eventId);
+    setLoadedEventIds(new Set(loadedEventIdsRef.current));
+  }, []);
+
+  const ensureEventLoaded = useCallback(
+    async (eventId: string) => {
+      if (loadedEventIdsRef.current.has(eventId)) return;
+      if (loadingEventIdsRef.current.has(eventId)) return;
+
+      loadingEventIdsRef.current.add(eventId);
+      try {
+        const [stallsData, offeringsData] = await Promise.all([
+          fetchStalls(eventId),
+          fetchOfferings(eventId),
+        ]);
+        setStalls((prev) => [...prev.filter((stall) => stall.eventId !== eventId), ...stallsData]);
+        setOfferings((prev) => [
+          ...prev.filter((offering) => offering.eventId !== eventId),
+          ...offeringsData,
+        ]);
+        markEventLoaded(eventId);
+      } finally {
+        loadingEventIdsRef.current.delete(eventId);
+      }
+    },
+    [markEventLoaded]
+  );
+
+  const isEventScopeLoaded = useCallback(
+    (eventId: string) => loadedEventIds.has(eventId),
+    [loadedEventIds]
+  );
+
+  const replaceStallOfferings = useCallback(
+    async (stallId: string, nextStallOfferings: Offering[]): Promise<Offering[]> => {
+      const stall = stalls.find((entry) => entry.id === stallId);
+      if (!stall) return [];
+
+      const updated = await replaceStallOfferingsApi(
+        stall.eventId,
+        stallId,
+        nextStallOfferings.map(toUpsertOfferingPayload)
+      );
+      setOfferings((prev) => [
+        ...prev.filter((offering) => offering.stallId !== stallId),
+        ...updated,
+      ]);
+      return updated;
+    },
+    [stalls]
+  );
 
   const getEventById = useCallback(
     (id: string) => events.find((event) => event.id === id),
@@ -139,17 +218,17 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
 
   const getCardapioByEventId = useCallback(
     (eventId: string) =>
-      buildCardapioForEvent(seedCatalogProducts, offerings, stalls, eventId),
-    [offerings, stalls]
+      buildCardapioForEvent(catalogProducts, offerings, stalls, eventId),
+    [catalogProducts, offerings, stalls]
   );
 
   const getMenuItemsByEventId = useCallback(
     (eventId: string) => {
       const eventOfferings = offerings.filter((offering) => offering.eventId === eventId);
       const eventStalls = stalls.filter((stall) => stall.eventId === eventId);
-      return buildMenuItemsFromOfferings(seedCatalogProducts, eventOfferings, eventStalls);
+      return buildMenuItemsFromOfferings(catalogProducts, eventOfferings, eventStalls);
     },
-    [offerings, stalls]
+    [catalogProducts, offerings, stalls]
   );
 
   const getOrdersByEventId = useCallback(
@@ -178,72 +257,104 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     [events]
   );
 
-  const createEvent = useCallback((input: CreateEventInput) => {
-    const id = input.id ?? `event-${Date.now()}`;
-    const event: Event = {
-      icon: '🎪',
-      ...input,
-      id,
-    } as Event;
+  const createEvent = useCallback(
+    async (input: CreateEventInput) => {
+      const { event, stalls: createdStalls, offerings: createdOfferings } = await createEventApi({
+        name: input.name,
+        cityId: input.cityId,
+        location: input.location,
+        description: input.description,
+        date: input.date,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        banner: input.banner,
+        status: input.status,
+        capacity: input.capacity,
+        primaryColor: input.primaryColor,
+        icon: input.icon,
+      });
 
-    const defaultStalls = createDefaultStallsForEvent(id);
-    const defaultOffering = createDefaultOfferingForEvent(id, defaultStalls[0].id);
+      setEvents((prev) => [...prev, event]);
+      setStalls((prev) => [...prev, ...createdStalls]);
+      setOfferings((prev) => [...prev, ...createdOfferings]);
+      markEventLoaded(event.id);
+      return event;
+    },
+    [markEventLoaded]
+  );
 
-    setEvents((prev) => [...prev, event]);
-    setStalls((prev) => [...prev, ...defaultStalls]);
-    setOfferings((prev) => [...prev, defaultOffering]);
-    return event;
-  }, []);
-
-  const updateEvent = useCallback((id: string, patch: Partial<Event>) => {
-    setEvents((prev) => prev.map((event) => (event.id === id ? { ...event, ...patch } : event)));
+  const updateEvent = useCallback(async (id: string, patch: Partial<Event>) => {
+    const updated = await updateEventApi(id, patch);
+    setEvents((prev) => prev.map((event) => (event.id === id ? updated : event)));
   }, []);
 
   const addStall = useCallback(
-    (eventId: string, stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }): Stall => {
-      const newStall: Stall = {
-        id: stall.id ?? `stall-${Date.now()}`,
-        eventId,
-        name: stall.name,
-        category: stall.category,
-        responsible: stall.responsible,
-        color: stall.color,
-        status: stall.status,
-        stock: stall.stock,
-      };
-      setStalls((prev) => [...prev, newStall]);
-      return newStall;
+    async (
+      eventId: string,
+      stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }
+    ): Promise<Stall> => {
+      const { id: _id, ...payload } = stall;
+      void _id;
+      const created = await createStallApi(eventId, payload);
+      setStalls((prev) => [...prev, created]);
+      return created;
     },
     []
   );
 
-  const updateStall = useCallback((stallId: string, patch: Partial<Stall>) => {
+  const updateStall = useCallback(async (stallId: string, patch: Partial<Stall>) => {
+    const stall = stalls.find((entry) => entry.id === stallId);
+    if (!stall) return;
+
+    const updated = await updateStallApi(stall.eventId, stallId, patch);
     setStalls((prev) =>
-      prev.map((stall) => (stall.id === stallId ? { ...stall, ...patch } : stall))
+      prev.map((entry) => (entry.id === stallId ? updated : entry))
     );
-  }, []);
+  }, [stalls]);
 
   const deleteStall = useCallback((stallId: string) => {
     setStalls((prev) => prev.filter((stall) => stall.id !== stallId));
     setOfferings((prev) => prev.filter((offering) => offering.stallId !== stallId));
   }, []);
 
-  const addOffering = useCallback((offering: Offering) => {
-    setOfferings((prev) => [...prev, offering]);
-    return offering;
-  }, []);
+  const addOffering = useCallback(
+    async (offering: Offering) => {
+      const stallOfferings = offerings.filter((entry) => entry.stallId === offering.stallId);
+      const updated = await replaceStallOfferings(offering.stallId, [
+        ...stallOfferings,
+        offering,
+      ]);
+      return updated[updated.length - 1] ?? offering;
+    },
+    [offerings, replaceStallOfferings]
+  );
 
-  const updateOffering = useCallback((offeringId: string, patch: Partial<Offering>) => {
-    setOfferings((prev) =>
-      prev.map((offering) =>
-        offering.id === offeringId ? { ...offering, ...patch } : offering
-      )
-    );
-  }, []);
+  const updateOffering = useCallback(
+    async (offeringId: string, patch: Partial<Offering>) => {
+      const target = offerings.find((entry) => entry.id === offeringId);
+      if (!target) return;
 
-  const deleteOffering = useCallback((offeringId: string) => {
-    setOfferings((prev) => prev.filter((offering) => offering.id !== offeringId));
-  }, []);
+      const stallOfferings = offerings
+        .filter((entry) => entry.stallId === target.stallId)
+        .map((entry) => (entry.id === offeringId ? { ...entry, ...patch } : entry));
+
+      await replaceStallOfferings(target.stallId, stallOfferings);
+    },
+    [offerings, replaceStallOfferings]
+  );
+
+  const deleteOffering = useCallback(
+    async (offeringId: string) => {
+      const target = offerings.find((entry) => entry.id === offeringId);
+      if (!target) return;
+
+      const stallOfferings = offerings.filter(
+        (entry) => entry.stallId === target.stallId && entry.id !== offeringId
+      );
+      await replaceStallOfferings(target.stallId, stallOfferings);
+    },
+    [offerings, replaceStallOfferings]
+  );
 
   const addOrder = useCallback((order: Order) => {
     setOrders((prev) => [order, ...prev]);
@@ -253,11 +364,16 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       hydrated,
+      loadError,
+      categories,
       events,
       stalls,
-      catalogProducts: seedCatalogProducts,
+      catalogProducts,
       offerings,
       orders,
+      isEventScopeLoaded,
+      ensureEventLoaded,
+      refreshEvents,
       getEventById,
       getStallsByEventId,
       getOfferingsByEventId,
@@ -280,10 +396,16 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     }),
     [
       hydrated,
+      loadError,
+      categories,
       events,
       stalls,
+      catalogProducts,
       offerings,
       orders,
+      isEventScopeLoaded,
+      ensureEventLoaded,
+      refreshEvents,
       getEventById,
       getStallsByEventId,
       getOfferingsByEventId,

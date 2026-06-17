@@ -25,22 +25,22 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const result = login(email, password);
-    setTimeout(() => {
-      setLoading(false);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      onSuccess?.();
-      const isOrganizer = result.user.roles.includes('organizer');
-      router.push(isOrganizer ? redirectOrganizerTo : redirectClientTo);
-    }, 350);
+    const result = await login(email, password);
+    setLoading(false);
+
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+
+    onSuccess?.();
+    const isOrganizer = result.user.roles.includes('organizer');
+    router.push(isOrganizer ? redirectOrganizerTo : redirectClientTo);
   };
 
   const fillDemo = (demoEmail: string) => {
@@ -103,7 +103,7 @@ export function LoginForm({
               onClick={() => fillDemo('maria@email.com')}
               className="rounded-lg bg-background px-2 py-1 border border-border"
             >
-              Cliente
+              Consumidor
             </button>
             <button
               type="button"

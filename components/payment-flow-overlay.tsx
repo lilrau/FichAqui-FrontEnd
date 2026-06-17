@@ -16,6 +16,7 @@ interface PaymentFlowOverlayProps {
   phase: PaymentFlowPhase;
   onBackToPayment: () => void;
   onSuccessFinished: () => void;
+  errorMessage?: string | null;
 }
 
 const SUCCESS_HOLD_MS = 700;
@@ -24,6 +25,7 @@ export function PaymentFlowOverlay({
   phase,
   onBackToPayment,
   onSuccessFinished,
+  errorMessage,
 }: PaymentFlowOverlayProps) {
   const [errorReady, setErrorReady] = useState(false);
   const { resolvedTheme } = useTheme();
@@ -88,7 +90,7 @@ export function PaymentFlowOverlay({
                 Pagamento não aprovado
               </h1>
               <p className="text-sm text-muted-foreground">
-                Não foi possível concluir o pagamento. Tente novamente.
+                {errorMessage ?? 'Não foi possível concluir o pagamento. Tente novamente.'}
               </p>
             </div>
             {errorReady && (

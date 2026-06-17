@@ -3,7 +3,7 @@
 import '@/app/(consumer)/metodos-pagamento/payment-card.css';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import { Badge } from '@/components/ui/badge';
-import { SavedPaymentCard } from '@/lib/mock-data';
+import { SavedPaymentCard } from '@/lib/types/wallet';
 
 interface SavedCreditCardProps {
   card: SavedPaymentCard;
@@ -47,9 +47,9 @@ export function SavedCreditCard({ card }: SavedCreditCardProps) {
             <div className="payment-card__expires">
               <div className="payment-card__section-title">Validade</div>
               <div className="payment-card__expires-value payment-card__expires-value--static">
-                <span>{card.expiryMonth}</span>
+                <span>{card.expiryMonth ?? '••'}</span>
                 <span className="payment-card__expires-sep">/</span>
-                <span>{card.expiryYear}</span>
+                <span>{card.expiryYear ?? '••'}</span>
               </div>
             </div>
           </div>

@@ -4,6 +4,18 @@ App de pedidos para festas juninas e eventos similares. Consumidores compram ite
 
 ## Language
 
+**Carteira**:
+Saldo pré-pago do Consumidor na plataforma, usado para pagamentos no evento. Pode incluir cartões salvos para cobrança.
+_Avoid_: Wallet, conta
+
+**Consumidor**:
+Pessoa autenticada que compra no evento — navega o Cardápio do Evento, faz Pedidos e retira Fichas nas Barracas.
+_Avoid_: Cliente, client, user
+
+**Organizador**:
+Pessoa que cria e gerencia Eventos, Barracas e Ofertas. Pode também ser Consumidor no mesmo login.
+_Avoid_: Admin (no sentido de operador de barraca), owner
+
 **Evento**:
 Uma festa ou evento com cardápio, barracas e pedidos próprios.
 _Avoid_: Festa, show
@@ -33,7 +45,7 @@ Uma compra do consumidor, podendo conter itens de Barracas diferentes no mesmo p
 _Avoid_: Order, compra
 
 **Ficha**:
-Comprovante de retirada de uma unidade comprada. Vinculada à Barraca da Oferta escolhida. Fica disponível para retirada assim que o Pedido é criado — não há tempo de espera nem preparo. No protótipo mock, o status permanece sempre disponível até o backend existir.
+Comprovante de retirada de uma unidade comprada. Vinculada à Barraca da Oferta escolhida. Fica disponível para retirada assim que o Pedido é criado — não há tempo de espera nem preparo. Cada unidade comprada gera uma Ficha com QR próprio; o status passa a entregue na Retirada.
 _Avoid_: Ticket, voucher, QR
 
 **Retirada**:

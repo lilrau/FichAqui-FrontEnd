@@ -30,13 +30,14 @@ export function EventoForm({ eventId }: { eventId: string }) {
     if (stored) setEvent(stored);
   }, [stored]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!event) return;
     setIsSaving(true);
-    updateEvent(eventId, event);
-    setTimeout(() => {
+    try {
+      await updateEvent(eventId, event);
+    } finally {
       setIsSaving(false);
-    }, 600);
+    }
   };
 
   if (!stored || !event) {

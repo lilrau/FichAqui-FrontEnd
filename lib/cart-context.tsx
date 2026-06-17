@@ -9,13 +9,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { useEventId } from '@/lib/event-context';
-import { useEventStore } from '@/lib/event-store';
-import {
-  generateOrderNumber,
-  generateQRCode,
-  type MenuItem,
-  type Order,
-} from '@/lib/types/event-domain';
+import type { MenuItem, Order } from '@/lib/types/event-domain';
 
 interface CartItem {
   item: MenuItem;
@@ -30,8 +24,7 @@ interface CartContextType {
   clearCart: () => void;
   total: number;
   itemCount: number;
-  orders: Order[];
-  createOrder: () => Order | null;
+  fulfillOrder: (order: Order) => Order;
   currentOrder: Order | null;
   setCurrentOrder: (order: Order | null) => void;
 }
@@ -43,13 +36,11 @@ type CurrentOrderByEvent = Record<string, Order | null>;
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const eventId = useEventId();
-  const { getOrdersByEventId, addOrder } = useEventStore();
 
   const [cartsByEvent, setCartsByEvent] = useState<CartsByEvent>({});
   const [currentOrderByEvent, setCurrentOrderByEvent] = useState<CurrentOrderByEvent>({});
 
   const items = cartsByEvent[eventId] ?? [];
-  const orders = getOrdersByEventId(eventId);
   const currentOrder = currentOrderByEvent[eventId] ?? null;
 
   const setItemsForEvent = useCallback(
@@ -111,26 +102,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [eventId]
   );
 
-  const createOrder = useCallback(() => {
-    if (items.length === 0) return null;
-
-    const newOrder: Order = {
-      id: `order-${Date.now()}`,
-      eventId,
-      number: generateOrderNumber(),
-      items: [...items],
-      total,
-      status: 'available',
-      createdAt: new Date(),
-      qrCode: generateQRCode(),
-    };
-
-    addOrder(newOrder);
-    setCurrentOrder(newOrder);
-    clearCart();
-
-    return newOrder;
-  }, [items, total, clearCart, eventId, setCurrentOrder, addOrder]);
+  const fulfillOrder = useCallback(
+    (order: Order) => {
+      setCurrentOrder(order);
+      clearCart();
+      return order;
+    },
+    [clearCart, setCurrentOrder]
+  );
 
   const value = useMemo(
     () => ({
@@ -141,8 +120,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clearCart,
       total,
       itemCount,
-      orders,
-      createOrder,
+      fulfillOrder,
       currentOrder,
       setCurrentOrder,
     }),
@@ -154,8 +132,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       clearCart,
       total,
       itemCount,
-      orders,
-      createOrder,
+      fulfillOrder,
       currentOrder,
       setCurrentOrder,
     ]

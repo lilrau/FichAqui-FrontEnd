@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Check, PartyPopper } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
+import { checkoutOrder, type CheckoutPaymentMethod } from '@/lib/checkout';
+import { getErrorMessage } from '@/lib/api/errors';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
-import { mockSavedPaymentCards } from '@/lib/mock-data';
+import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
+import { useUserOrders } from '@/lib/user-orders-context';
 import { OrderStatus, OrderQRCode } from '@/components/order-status';
+import type { Order } from '@/lib/types/event-domain';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/menu-item-card';
@@ -18,16 +22,28 @@ import {
 } from '@/components/payment-flow-overlay';
 import { cn } from '@/lib/utils';
 
-type PaymentMethod = 'pix' | 'card';
+type PaymentMethod = CheckoutPaymentMethod;
 
-const PAYMENT_OPTIONS: { id: PaymentMethod; label: string; hint?: string }[] = [
-  { id: 'pix', label: 'PIX' },
-  {
-    id: 'card',
-    label: 'Cartão de crédito',
-    hint: 'Cobrança no crédito do cartão selecionado',
-  },
-];
+function buildPaymentOptions(balance: number, total: number) {
+  const walletDisabled = balance < total;
+
+  return [
+    {
+      id: 'wallet' as const,
+      label: 'Saldo da carteira',
+      hint: walletDisabled
+        ? `Saldo insuficiente (R$ ${formatWalletBalance(balance)})`
+        : `Usar saldo disponível (R$ ${formatWalletBalance(balance)})`,
+      disabled: walletDisabled,
+    },
+    { id: 'pix' as const, label: 'PIX', hint: 'Pagamento instantâneo' },
+    {
+      id: 'card' as const,
+      label: 'Cartão de crédito',
+      hint: 'Cobrança no crédito do cartão selecionado',
+    },
+  ];
+}
 
 const paymentSelectTransition = {
   type: 'spring' as const,
@@ -38,34 +54,65 @@ const paymentSelectTransition = {
 function PedidoContent() {
   const router = useRouter();
   const eventId = useEventId();
-  const { items, total, createOrder, currentOrder, setCurrentOrder } = useCart();
+  const { items, total, fulfillOrder, currentOrder, setCurrentOrder } = useCart();
+  const { savedCards, defaultCard, balance, refreshWallet } = useWallet();
+  const { refreshUserOrders } = useUserOrders();
   const cardapioHref = buildConsumerEventHref('/cardapio', eventId);
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlowPhase | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
-  const defaultCard =
-    mockSavedPaymentCards.find((card) => card.isDefault) ??
-    mockSavedPaymentCards[0];
-  const [selectedCardId, setSelectedCardId] = useState(defaultCard?.id ?? '');
+  const [selectedCardId, setSelectedCardId] = useState('');
+  const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
 
-  const handleConfirm = () => {
+  const paymentOptions = buildPaymentOptions(balance, total);
+  const canPayWithWallet = balance >= total;
+  const canPayWithCard =
+    paymentMethod !== 'card' || (savedCards.length > 0 && Boolean(selectedCardId));
+
+  useEffect(() => {
+    if (defaultCard) {
+      setSelectedCardId(defaultCard.id);
+    }
+  }, [defaultCard]);
+
+  const handleConfirm = async () => {
+    if (items.length === 0) return;
+    if (paymentMethod === 'card' && !selectedCardId) return;
+
     setIsConfirming(true);
     setPaymentFlow('processing');
+    setPaymentError(null);
 
-    window.setTimeout(() => {
-      const approved = Math.random() < 0.5;
-      setPaymentFlow(approved ? 'success' : 'error');
-    }, 1800);
+    try {
+      const order = await checkoutOrder(eventId, items, paymentMethod, {
+        cardId: selectedCardId,
+      });
+      await refreshWallet();
+      await refreshUserOrders();
+      setPendingOrder(order);
+      setPaymentFlow('success');
+    } catch (error) {
+      setPaymentError(getErrorMessage(error, 'Não foi possível concluir o pagamento.'));
+      setPaymentFlow('error');
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const handleBackToPayment = () => {
     setPaymentFlow(null);
+    setPaymentError(null);
     setIsConfirming(false);
+    setPendingOrder(null);
   };
 
   const handlePaymentSuccessFinished = () => {
-    createOrder();
+    if (pendingOrder) {
+      fulfillOrder(pendingOrder);
+      setPendingOrder(null);
+    }
     setShowSuccess(true);
     setPaymentFlow(null);
     setIsConfirming(false);
@@ -77,6 +124,7 @@ function PedidoContent() {
         phase={paymentFlow}
         onBackToPayment={handleBackToPayment}
         onSuccessFinished={handlePaymentSuccessFinished}
+        errorMessage={paymentError}
       />
     );
   }
@@ -250,23 +298,26 @@ function PedidoContent() {
               </div>
             </div>
 
-            {/* Payment Method (mock) */}
+            {/* Payment Method */}
             <div className="rounded-2xl bg-card p-4 shadow-md border border-border">
               <h3 className="font-bold text-card-foreground mb-3">Forma de pagamento</h3>
               <LayoutGroup id="pedido-payment-method">
                 <div className="space-y-2">
-                  {PAYMENT_OPTIONS.map((option) => {
+                  {paymentOptions.map((option) => {
                     const selected = paymentMethod === option.id;
 
                     return (
                       <label
                         key={option.id}
                         className={cn(
-                          'relative flex cursor-pointer items-center gap-3 rounded-xl p-3',
-                          !selected && 'bg-secondary'
+                          'relative flex items-center gap-3 rounded-xl p-3',
+                          option.disabled
+                            ? 'cursor-not-allowed opacity-50 bg-secondary'
+                            : 'cursor-pointer',
+                          !selected && !option.disabled && 'bg-secondary'
                         )}
                       >
-                        {selected && (
+                        {selected && !option.disabled && (
                           <motion.div
                             layoutId="pedido-payment-method-active"
                             className="absolute inset-0 rounded-xl border border-primary bg-primary/5"
@@ -277,6 +328,7 @@ function PedidoContent() {
                           type="radio"
                           name="payment"
                           checked={selected}
+                          disabled={option.disabled}
                           onChange={() => setPaymentMethod(option.id)}
                           className="relative z-10 h-5 w-5 accent-primary"
                         />
@@ -301,7 +353,18 @@ function PedidoContent() {
                 </div>
 
                 <AnimatePresence initial={false}>
-                  {paymentMethod === 'card' && mockSavedPaymentCards.length > 0 && (
+                  {paymentMethod === 'card' && savedCards.length === 0 && (
+                    <motion.p
+                      key="no-cards"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="mt-3 text-sm text-muted-foreground"
+                    >
+                      Nenhum cartão salvo na carteira. Escolha PIX ou saldo.
+                    </motion.p>
+                  )}
+                  {paymentMethod === 'card' && savedCards.length > 0 && (
                     <motion.div
                       key="saved-cards"
                       initial={{ opacity: 0, height: 0 }}
@@ -315,7 +378,7 @@ function PedidoContent() {
                           Cartão de crédito para cobrança
                         </p>
                         <LayoutGroup id="pedido-payment-card">
-                          {mockSavedPaymentCards.map((card, index) => {
+                          {savedCards.map((card, index) => {
                             const selected = selectedCardId === card.id;
 
                             return (
@@ -379,8 +442,8 @@ function PedidoContent() {
       {items.length > 0 && (
         <div className="fixed bottom-0 inset-x-0 bg-background border-t border-border px-4 py-4 pb-8">
           <Button
-            onClick={handleConfirm}
-            disabled={isConfirming}
+            onClick={() => void handleConfirm()}
+            disabled={isConfirming || !canPayWithCard}
             className="w-full h-14 text-lg font-bold rounded-2xl"
           >
             {isConfirming ? (

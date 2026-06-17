@@ -102,6 +102,7 @@ export interface Order {
   status: OrderStatus;
   createdAt: Date;
   qrCode: string;
+  fichas?: Ficha[];
 }
 
 export interface Ficha {
@@ -134,6 +135,10 @@ export interface Event {
 }
 
 export function getFichasFromOrder(order: Order): Ficha[] {
+  if (order.fichas?.length) {
+    return order.fichas;
+  }
+
   return order.items.flatMap((cartItem, index) =>
     Array.from({ length: cartItem.quantity }, (_, unitIndex) => ({
       id: `${order.id}-ficha-${index}-${unitIndex}`,

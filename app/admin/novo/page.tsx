@@ -35,18 +35,19 @@ export default function NovoEventoPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!event.name.trim() || !user?.organizerId) return;
     setIsSaving(true);
-    const created = createEvent({
-      ...event,
-      organizerId: user.organizerId,
-      status: 'draft',
-    });
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const created = await createEvent({
+        ...event,
+        organizerId: user.organizerId,
+        status: 'draft',
+      });
       router.push(`/admin/${created.id}`);
-    }, 400);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

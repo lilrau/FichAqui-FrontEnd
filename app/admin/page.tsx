@@ -62,7 +62,7 @@ export default function AdminHubPage() {
             <button
               type="button"
               onClick={() => {
-                logout();
+                void logout();
                 router.push('/');
               }}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20"
