@@ -4,6 +4,11 @@ export interface SessionUser {
   id: string;
   email: string;
   name: string;
+  phone?: string | null;
+  cpf?: string | null;
+  birthDate?: string | null;
   roles: UserRole[];
   organizerId?: string | null;
+  stallId?: string | null;
+  eventId?: string | null;
 }

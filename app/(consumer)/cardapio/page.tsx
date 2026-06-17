@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { LogIn, MapPin, Search, ShoppingBag, Wallet } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
-import { isFichaValid } from '@/lib/mock-data';
+import { isFichaValid } from '@/lib/types/event-domain';
 import { useEventStore } from '@/lib/event-store';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useActiveEvent, useEventId } from '@/lib/event-context';

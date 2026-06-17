@@ -5,11 +5,6 @@ import { useActiveEvent } from '@/lib/event-context';
 
 export type ConsumerScope = 'global' | 'event';
 
-/** Fichas exibidas na carteira (fora do mock completo). */
-export const WALLET_FICHA_IDS = ['ficha-1', 'ficha-2'] as const;
-export const MILHO_VERDE_FICHA_ID = 'ficha-2';
-export const MILHO_VERDE_VARIANT_ID = 'milho-verde:unidade';
-
 const GLOBAL_ONLY_PATHS = ['/metodos-pagamento'] as const;
 
 /** Rotas que funcionam com ou sem evento ativo (via ?event=). */

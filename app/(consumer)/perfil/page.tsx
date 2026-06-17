@@ -17,20 +17,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
-import { loadJson, saveJson } from '@/lib/storage';
+import { updateProfileApi } from '@/lib/api/profile';
+import { getErrorMessage } from '@/lib/api/errors';
 import { cn } from '@/lib/utils';
 
-const PROFILE_KEY = 'event-app:profile';
-
-const profileDefaults = {
-  name: 'Maria Silva',
-  email: 'maria.silva@email.com',
-  phone: '(41) 99999-1234',
-  cpf: '123.456.789-09',
-  birthDate: '15/03/1992',
+type EditableProfile = {
+  name: string;
+  phone: string;
 };
-
-type EditableProfile = Pick<typeof profileDefaults, 'name' | 'email' | 'phone'>;
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -46,31 +40,33 @@ const readOnlyInputClass =
 
 export default function PerfilPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [form, setForm] = useState<EditableProfile>({
-    name: profileDefaults.name,
-    email: profileDefaults.email,
-    phone: profileDefaults.phone,
-  });
+  const { user, refreshUser } = useAuth();
+  const [form, setForm] = useState<EditableProfile>({ name: '', phone: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = loadJson<Partial<EditableProfile> | null>(PROFILE_KEY, null);
+    if (!user) return;
     setForm({
-      name: stored?.name ?? user?.name ?? profileDefaults.name,
-      email: stored?.email ?? user?.email ?? profileDefaults.email,
-      phone: stored?.phone ?? profileDefaults.phone,
+      name: user.name,
+      phone: user.phone ?? '',
     });
-  }, [user?.name, user?.email]);
+  }, [user]);
 
   const handleSave = async () => {
     setSaving(true);
-    saveJson(PROFILE_KEY, form);
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      await updateProfileApi({ name: form.name, phone: form.phone });
+      await refreshUser();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, 'Não foi possível salvar o perfil.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -113,9 +109,11 @@ export default function PerfilPage() {
             <Input
               id="profile-email"
               type="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              autoComplete="email"
+              value={user?.email ?? ''}
+              readOnly
+              tabIndex={-1}
+              aria-readonly
+              className={readOnlyInputClass}
             />
           </div>
 
@@ -137,7 +135,7 @@ export default function PerfilPage() {
             <Label htmlFor="profile-cpf">CPF</Label>
             <Input
               id="profile-cpf"
-              value={profileDefaults.cpf}
+              value={user?.cpf ?? '—'}
               readOnly
               tabIndex={-1}
               aria-readonly
@@ -149,13 +147,15 @@ export default function PerfilPage() {
             <Label htmlFor="profile-birth-date">Data de nascimento</Label>
             <Input
               id="profile-birth-date"
-              value={profileDefaults.birthDate}
+              value={user?.birthDate ?? '—'}
               readOnly
               tabIndex={-1}
               aria-readonly
               className={readOnlyInputClass}
             />
           </div>
+
+          {saveError && <p className="text-sm text-destructive">{saveError}</p>}
 
           <Button
             type="button"

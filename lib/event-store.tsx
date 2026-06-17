@@ -24,8 +24,6 @@ import {
   buildCardapioForEvent,
   buildMenuItemsFromOfferings,
 } from '@/lib/catalog/menu-catalog';
-import { loadJson, saveJson } from '@/lib/storage';
-import { seedOrders } from '@/lib/seed';
 import type {
   CardapioProduct,
   CatalogProduct,
@@ -33,11 +31,8 @@ import type {
   Event,
   MenuItem,
   Offering,
-  Order,
   Stall,
 } from '@/lib/types/event-domain';
-
-const ORDERS_KEY = 'event-app:orders';
 
 export type CreateEventInput = Omit<Event, 'id'> & { id?: string };
 
@@ -49,7 +44,6 @@ interface EventStoreContextType {
   stalls: Stall[];
   catalogProducts: CatalogProduct[];
   offerings: Offering[];
-  orders: Order[];
   isEventScopeLoaded: (eventId: string) => boolean;
   ensureEventLoaded: (eventId: string) => Promise<void>;
   refreshEvents: () => Promise<void>;
@@ -59,7 +53,6 @@ interface EventStoreContextType {
   getOfferingsByStallId: (stallId: string) => Offering[];
   getCardapioByEventId: (eventId: string) => CardapioProduct[];
   getMenuItemsByEventId: (eventId: string) => MenuItem[];
-  getOrdersByEventId: (eventId: string) => Order[];
   getPublicEvents: () => Event[];
   getEventsByCityId: (cityId: string, options?: { publicOnly?: boolean }) => Event[];
   getEventsByOrganizerId: (organizerId: string) => Event[];
@@ -74,7 +67,6 @@ interface EventStoreContextType {
   addOffering: (offering: Offering) => Promise<Offering>;
   updateOffering: (offeringId: string, patch: Partial<Offering>) => Promise<void>;
   deleteOffering: (offeringId: string) => Promise<void>;
-  addOrder: (order: Order) => Order;
 }
 
 const EventStoreContext = createContext<EventStoreContextType | undefined>(undefined);
@@ -87,22 +79,12 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
   const [stalls, setStalls] = useState<Stall[]>([]);
   const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
   const [offerings, setOfferings] = useState<Offering[]>([]);
-  const [orders, setOrders] = useState<Order[]>(seedOrders);
   const [hydrated, setHydrated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadedEventIds, setLoadedEventIds] = useState<Set<string>>(() => new Set());
 
   const loadedEventIdsRef = useRef<Set<string>>(new Set());
   const loadingEventIdsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    setOrders(loadJson<Order[] | null>(ORDERS_KEY, null) ?? seedOrders);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    saveJson(ORDERS_KEY, orders);
-  }, [orders, hydrated]);
 
   const refreshEvents = useCallback(async () => {
     const list = await fetchEvents(
@@ -231,14 +213,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     [catalogProducts, offerings, stalls]
   );
 
-  const getOrdersByEventId = useCallback(
-    (eventId: string) =>
-      orders
-        .filter((order) => order.eventId === eventId)
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
-    [orders]
-  );
-
   const getPublicEvents = useCallback(() => {
     return events.filter((event) => event.status === 'active' || event.status === 'published');
   }, [events]);
@@ -356,11 +330,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     [offerings, replaceStallOfferings]
   );
 
-  const addOrder = useCallback((order: Order) => {
-    setOrders((prev) => [order, ...prev]);
-    return order;
-  }, []);
-
   const value = useMemo(
     () => ({
       hydrated,
@@ -370,7 +339,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       stalls,
       catalogProducts,
       offerings,
-      orders,
       isEventScopeLoaded,
       ensureEventLoaded,
       refreshEvents,
@@ -380,7 +348,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       getOfferingsByStallId,
       getCardapioByEventId,
       getMenuItemsByEventId,
-      getOrdersByEventId,
       getPublicEvents,
       getEventsByCityId,
       getEventsByOrganizerId,
@@ -392,7 +359,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       addOffering,
       updateOffering,
       deleteOffering,
-      addOrder,
     }),
     [
       hydrated,
@@ -402,7 +368,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       stalls,
       catalogProducts,
       offerings,
-      orders,
       isEventScopeLoaded,
       ensureEventLoaded,
       refreshEvents,
@@ -412,7 +377,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       getOfferingsByStallId,
       getCardapioByEventId,
       getMenuItemsByEventId,
-      getOrdersByEventId,
       getPublicEvents,
       getEventsByCityId,
       getEventsByOrganizerId,
@@ -424,7 +388,6 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       addOffering,
       updateOffering,
       deleteOffering,
-      addOrder,
     ]
   );
 

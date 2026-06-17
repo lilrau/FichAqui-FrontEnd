@@ -1,19 +1,12 @@
-import { seedCatalogProducts } from '@/lib/seed/global-catalog';
+export const PRODUCT_IMAGE_FALLBACK = '🍽️';
 
-const productImageById = Object.fromEntries(
-  seedCatalogProducts.map((product) => [product.id, product.image])
-);
+export function isImageUrl(value: string): boolean {
+  return value.startsWith('http://') || value.startsWith('https://');
+}
 
-/** Resolve API image slug to display emoji (until backend serves asset URLs). */
-export function resolveProductImage(imageOrSlug: string, productId?: string): string {
-  if (imageOrSlug.startsWith('http://') || imageOrSlug.startsWith('https://')) {
-    return imageOrSlug;
-  }
-  if (productImageById[imageOrSlug]) {
-    return productImageById[imageOrSlug];
-  }
-  if (productId && productImageById[productId]) {
-    return productImageById[productId];
-  }
-  return '🍽️';
+/** Pass-through for API image (URL or emoji). No local catalog lookup. */
+export function resolveProductImage(imageOrSlug: string): string {
+  if (!imageOrSlug?.trim()) return PRODUCT_IMAGE_FALLBACK;
+  if (isImageUrl(imageOrSlug)) return imageOrSlug;
+  return imageOrSlug;
 }

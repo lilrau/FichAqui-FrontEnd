@@ -9,7 +9,7 @@ Saldo pré-pago do Consumidor na plataforma, usado para pagamentos no evento. Po
 _Avoid_: Wallet, conta
 
 **Consumidor**:
-Pessoa autenticada que compra no evento — navega o Cardápio do Evento, faz Pedidos e retira Fichas nas Barracas.
+Pessoa autenticada que compra no evento — navega o Cardápio do Evento, faz Pedidos e retira Fichas nas Barracas. Perfil com nome e telefone editáveis via API; e-mail, CPF e data de nascimento somente leitura.
 _Avoid_: Cliente, client, user
 
 **Organizador**:
@@ -20,12 +20,16 @@ _Avoid_: Admin (no sentido de operador de barraca), owner
 Uma festa ou evento com cardápio, barracas e pedidos próprios.
 _Avoid_: Festa, show
 
+**Cidade**:
+Município onde Eventos são listados e filtrados na plataforma. Lista mantida pelo backend (`GET /api/cities`); o consumidor escolhe uma Cidade para ver Eventos da região.
+_Avoid_: City, região, localidade
+
 **Barraca**:
 Um ponto de venda físico dentro de um evento, operado por um responsável. Pode estar aberta ou fechada; Barracas fechadas não aparecem para o consumidor.
 _Avoid_: Loja, vendor, stall
 
 **Produto**:
-Definição compartilhada de um item do cardápio — nome, descrição, imagem e categoria. Catálogo pré-definido pelo backend; o organizador não cria produtos.
+Definição compartilhada de um item do cardápio — nome, descrição, imagem e categoria. Catálogo pré-definido pelo backend; o organizador não cria produtos. A imagem vem da API (URL); se indisponível ou com erro de carregamento, o front exibe emoji genérico de fallback — não catálogo local.
 _Avoid_: Item, SKU
 
 **Catálogo Global**:
@@ -52,9 +56,17 @@ _Avoid_: Ticket, voucher, QR
 O momento em que o consumidor apresenta a Ficha na Barraca e recebe o item. A confirmação é automática (backend), não manual pelo admin.
 _Avoid_: Entrega, delivery, confirmar entrega
 
+**Atendente**:
+Pessoa com acesso à Barraca que executa a Retirada — lê o QR da Ficha e confirma no backend. Opera em `/retirada` (mobile-first); sua Barraca vem do perfil autenticado, não escolhida na UI.
+_Avoid_: stall_manager (em copy de produto), operador, scanner
+
 **Painel de Pedidos**:
 Tela do admin para monitoramento e auditoria de pedidos e fichas. Somente leitura — sem ações manuais de confirmação.
 _Avoid_: Gestão de entregas, fila de preparo
+
+**Relatório do Evento**:
+Visão agregada de vendas do Evento para o Organizador — receita, quantidade de Pedidos, ticket médio, vendas por hora/categoria e produtos mais vendidos. Derivado de Pedidos reais; não inclui contagem de visitantes físicos.
+_Avoid_: Analytics, dashboard, visitantes
 
 **Cardápio do Evento**:
 Visão do consumidor com todos os Produtos que possuem ao menos uma Oferta ativa em Barraca aberta no evento. Um card por Produto. Quando há preços diferentes entre Barracas, o card mostra "A partir de R$ X".

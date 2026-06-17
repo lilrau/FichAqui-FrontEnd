@@ -25,6 +25,7 @@ interface AuthContextType {
     password: string
   ) => Promise<{ ok: true; user: SessionUser } | { ok: false; error: string }>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,6 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const profile = await meApi();
+    setUser(profile);
+  }, []);
+
   const value = useMemo(
     () => ({
       hydrated,
@@ -90,8 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasRole,
       login,
       logout,
+      refreshUser,
     }),
-    [hydrated, user, hasRole, login, logout]
+    [hydrated, user, hasRole, login, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

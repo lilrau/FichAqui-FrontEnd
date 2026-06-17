@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api/client';
 import { resolveProductImage } from '@/lib/catalog/product-images';
+import type { AdminOrder } from '@/lib/types/admin-order';
 import type { Ficha, MenuItem, Order, OrderStatus } from '@/lib/types/event-domain';
 import type { ConsumerOrder, ConsumerOrderSummaryItem } from '@/lib/types/consumer-order';
 
@@ -128,6 +129,34 @@ export function normalizeApiOrder(
     qrCode: dto.qrCode,
     fichas: dto.fichas?.map(normalizeFicha),
   };
+}
+
+interface ApiAdminOrder extends ApiOrder {
+  fichaCounts?: {
+    available: number;
+    delivered: number;
+  };
+}
+
+export function normalizeAdminOrder(dto: ApiAdminOrder): AdminOrder {
+  return {
+    id: dto.id,
+    eventId: dto.eventId,
+    number: dto.number,
+    status: dto.status,
+    total: dto.total,
+    createdAt: new Date(dto.createdAt),
+    qrCode: dto.qrCode,
+    items: normalizeSummaryItems(dto.items),
+    fichaCounts: dto.fichaCounts,
+  };
+}
+
+export async function fetchEventPedidos(eventId: string): Promise<AdminOrder[]> {
+  const data = await apiRequest<ApiAdminOrder[]>(`/api/events/${eventId}/pedidos`, {
+    auth: true,
+  });
+  return data.map(normalizeAdminOrder);
 }
 
 export async function createOrderApi(

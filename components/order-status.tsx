@@ -1,9 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Order } from '@/lib/mock-data';
+import type { Order } from '@/lib/types/event-domain';
 import { statusConfig } from '@/lib/order-status-config';
-import { QrCodeMock } from '@/components/qr-code-mock';
+import { FichaQrCode } from '@/components/ficha-qr-code';
 import { cn } from '@/lib/utils';
 
 interface OrderStatusProps {
@@ -60,7 +60,7 @@ export function OrderQRCode({ order }: OrderQRCodeProps) {
         Mostre esta ficha na barraca
       </h3>
 
-      <QrCodeMock qrCode={order.qrCode} />
+      <FichaQrCode qrCode={order.qrCode} />
 
       <p className="mt-4 text-sm text-muted-foreground font-mono">
         {order.qrCode}

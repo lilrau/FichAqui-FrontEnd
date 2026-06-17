@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useEventStore } from '@/lib/event-store';
-import { cityLabel } from '@/lib/seed/cities';
-import { seedCities } from '@/lib/seed/cities';
+import { useCity } from '@/lib/city-context';
+import { cityLabel } from '@/lib/types/city';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -35,13 +35,14 @@ export default function AdminHubPage() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { getEventsByOrganizerId } = useEventStore();
+  const { cities } = useCity();
 
   const events = user?.organizerId
     ? getEventsByOrganizerId(user.organizerId)
     : [];
 
   const cityName = (cityId: string) => {
-    const city = seedCities.find((c) => c.id === cityId);
+    const city = cities.find((entry) => entry.id === cityId);
     return city ? cityLabel(city) : cityId;
   };
 

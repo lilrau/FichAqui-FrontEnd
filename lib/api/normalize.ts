@@ -14,9 +14,14 @@ export function normalizeUser(dto: {
   id: string;
   email: string;
   name: string;
+  phone?: string | null;
+  cpf?: string | null;
+  birthDate?: string | null;
   role?: string;
   roles?: string[];
   organizerId?: string | null;
+  stallId?: string | null;
+  eventId?: string | null;
 }): SessionUser {
   const roles = new Set<UserRole>();
   for (const entry of dto.roles ?? []) {
@@ -35,15 +40,20 @@ export function normalizeUser(dto: {
     id: dto.id,
     email: dto.email,
     name: dto.name,
+    phone: dto.phone ?? null,
+    cpf: dto.cpf ?? null,
+    birthDate: dto.birthDate ?? null,
     roles: [...roles],
     organizerId: dto.organizerId ?? null,
+    stallId: dto.stallId ?? null,
+    eventId: dto.eventId ?? null,
   };
 }
 
 export function normalizeCatalogProduct(dto: CatalogProduct): CatalogProduct {
   return {
     ...dto,
-    image: resolveProductImage(dto.image, dto.id),
+    image: resolveProductImage(dto.image),
   };
 }
 

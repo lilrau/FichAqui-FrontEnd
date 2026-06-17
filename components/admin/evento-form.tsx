@@ -13,7 +13,8 @@ import {
   Globe,
 } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
-import { seedCities, cityLabel } from '@/lib/seed/cities';
+import { useCity } from '@/lib/city-context';
+import { cityLabel } from '@/lib/types/city';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,7 @@ import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
 
 export function EventoForm({ eventId }: { eventId: string }) {
   const { getEventById, updateEvent } = useEventStore();
+  const { cities } = useCity();
   const stored = getEventById(eventId);
   const [event, setEvent] = useState(stored);
   const [isSaving, setIsSaving] = useState(false);
@@ -199,7 +201,7 @@ export function EventoForm({ eventId }: { eventId: string }) {
               onChange={(e) => setEvent({ ...event, cityId: e.target.value })}
               className="mt-2 w-full h-14 rounded-xl border border-input bg-background px-3 text-base"
             >
-              {seedCities.map((city) => (
+              {cities.map((city) => (
                 <option key={city.id} value={city.id}>
                   {cityLabel(city)}
                 </option>

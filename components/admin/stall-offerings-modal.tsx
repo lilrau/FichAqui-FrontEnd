@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, X } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
-import { createOfferingFromCatalogProduct } from '@/lib/seed/offerings';
+import { createOfferingFromCatalogProduct } from '@/lib/catalog/create-offering';
 import type { CatalogProduct, Offering, OfferingVariant, Stall } from '@/lib/types/event-domain';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

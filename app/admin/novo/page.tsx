@@ -7,7 +7,7 @@ import { ChevronLeft, Save } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useCity } from '@/lib/city-context';
 import { useEventStore } from '@/lib/event-store';
-import { seedCities, cityLabel } from '@/lib/seed/cities';
+import { cityLabel } from '@/lib/types/city';
 import type { Event } from '@/lib/types/event-domain';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 export default function NovoEventoPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { selectedCityId } = useCity();
+  const { selectedCityId, cities } = useCity();
   const { createEvent } = useEventStore();
 
   const [event, setEvent] = useState<Omit<Event, 'id'>>({
@@ -25,7 +25,7 @@ export default function NovoEventoPage() {
     startTime: '18:00',
     endTime: '23:00',
     location: '',
-    cityId: selectedCityId ?? seedCities[0].id,
+    cityId: selectedCityId ?? cities[0]?.id ?? '',
     organizerId: user?.organizerId ?? '',
     banner: '/festa-banner.jpg',
     status: 'draft',
@@ -84,7 +84,7 @@ export default function NovoEventoPage() {
             onChange={(e) => setEvent({ ...event, cityId: e.target.value })}
             className="mt-2 w-full h-14 rounded-xl border border-input bg-background px-3 text-base"
           >
-            {seedCities.map((city) => (
+            {cities.map((city) => (
               <option key={city.id} value={city.id}>
                 {cityLabel(city)}
               </option>

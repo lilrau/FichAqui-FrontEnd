@@ -3,48 +3,15 @@
 import { Suspense, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
-import { Wallet, Plus, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Wallet, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConsumerLoading } from '@/components/consumer-loading';
 import type { Ficha } from '@/lib/types/event-domain';
 import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
 import { FichaCard } from '@/components/ficha-card';
-import { useConsumerScope, useConsumerEventId, type ConsumerScope } from '@/lib/consumer-scope';
-import { useActiveEvent } from '@/lib/event-context';
-import { isFichaExcludedFromEvent } from '@/lib/wallet-fichas';
+import { useConsumerEventId } from '@/lib/consumer-scope';
 import { useUserOrders } from '@/lib/user-orders-context';
 import { cn } from '@/lib/utils';
-
-const mockTransactions = [
-  {
-    id: 'tx-1',
-    label: 'Recarga via PIX',
-    amount: 50,
-    type: 'credit' as const,
-    date: 'Hoje, 14:32',
-  },
-  {
-    id: 'tx-2',
-    label: 'Pedido #1234',
-    amount: -22,
-    type: 'debit' as const,
-    date: 'Hoje, 12:15',
-  },
-  {
-    id: 'tx-3',
-    label: 'Recarga via PIX',
-    amount: 30,
-    type: 'credit' as const,
-    date: 'Ontem, 18:40',
-  },
-  {
-    id: 'tx-4',
-    label: 'Pedido #1189',
-    amount: -12,
-    type: 'debit' as const,
-    date: 'Ontem, 17:22',
-  },
-];
 
 const tabs = [
   { id: 'movimentacoes' as const, label: 'Movimentações' },
@@ -70,54 +37,16 @@ const slideVariants = {
 
 function TransactionsList() {
   return (
-    <div className="space-y-2">
-      {mockTransactions.map((tx, index) => (
-        <motion.div
-          key={tx.id}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.05 }}
-          className="flex items-center justify-between rounded-xl bg-card border border-border p-4"
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                tx.type === 'credit' ? 'bg-green-500/10' : 'bg-secondary'
-              }`}
-            >
-              {tx.type === 'credit' ? (
-                <ArrowDownLeft className="h-5 w-5 text-green-600" />
-              ) : (
-                <ArrowUpRight className="h-5 w-5 text-muted-foreground" />
-              )}
-            </div>
-            <div>
-              <p className="font-medium text-foreground text-sm">{tx.label}</p>
-              <p className="text-xs text-muted-foreground">{tx.date}</p>
-            </div>
-          </div>
-          <span
-            className={`font-semibold text-sm ${
-              tx.type === 'credit' ? 'text-green-600' : 'text-foreground'
-            }`}
-          >
-            {tx.amount > 0 ? '+' : ''}R$ {Math.abs(tx.amount).toFixed(2).replace('.', ',')}
-          </span>
-        </motion.div>
-      ))}
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <p className="font-semibold text-foreground">Nenhuma movimentação</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        O histórico da carteira aparecerá aqui quando a API estiver disponível.
+      </p>
     </div>
   );
 }
 
-function FichasList({
-  fichas,
-  scope,
-  eventName,
-}: {
-  fichas: Ficha[];
-  scope: ConsumerScope;
-  eventName?: string;
-}) {
+function FichasList({ fichas }: { fichas: Ficha[] }) {
   if (fichas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -141,11 +70,7 @@ function FichasList({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 }}
         >
-          <FichaCard
-            ficha={ficha}
-            excludedFromEvent={isFichaExcludedFromEvent(ficha, scope)}
-            eventName={eventName}
-          />
+          <FichaCard ficha={ficha} />
         </motion.div>
       ))}
     </div>
@@ -159,9 +84,7 @@ function CarteiraContent() {
   const initialTabIndex = tabs.findIndex((t) => t.id === initialTab);
 
   const { balance, loadError } = useWallet();
-  const scope = useConsumerScope();
   const consumerEventId = useConsumerEventId();
-  const { activeEvent } = useActiveEvent();
   const { getAvailableFichasForEvent } = useUserOrders();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [[tabIndex, direction], setTabPosition] = useState([initialTabIndex, 0]);
@@ -249,11 +172,7 @@ function CarteiraContent() {
                 {activeTab === 'movimentacoes' ? (
                   <TransactionsList />
                 ) : (
-                  <FichasList
-                    fichas={availableFichas}
-                    scope={scope}
-                    eventName={activeEvent?.name}
-                  />
+                  <FichasList fichas={availableFichas} />
                 )}
               </motion.div>
             </AnimatePresence>

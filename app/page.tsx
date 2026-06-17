@@ -19,7 +19,7 @@ import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useCity } from '@/lib/city-context';
 import { useActiveEvent } from '@/lib/event-context';
 import { useEventStore } from '@/lib/event-store';
-import { cityLabel } from '@/lib/seed/cities';
+import { cityLabel } from '@/lib/types/city';
 import { formatEventDate } from '@/lib/event-routing';
 import { cn } from '@/lib/utils';
 import type { Event } from '@/lib/types/event-domain';

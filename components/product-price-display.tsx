@@ -1,4 +1,4 @@
-import type { CardapioProduct } from '@/lib/mock-data';
+import type { CardapioProduct } from '@/lib/types/event-domain';
 import { getCardapioPriceParts } from '@/lib/menu-utils';
 import { cn } from '@/lib/utils';
 

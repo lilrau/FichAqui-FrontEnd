@@ -1,5 +1,5 @@
 import { Check, Package, LucideIcon } from 'lucide-react';
-import { OrderStatus } from '@/lib/mock-data';
+import type { OrderStatus } from '@/lib/types/event-domain';
 
 export const statusConfig: Record<
   OrderStatus,

@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useNavigation } from '@/components/navigation-provider';
 import { Minus, Plus, Flame, ChevronRight } from 'lucide-react';
-import type { CardapioProduct, CatalogProduct, MenuItem, Offering, Stall } from '@/lib/mock-data';
+import type { CardapioProduct, CatalogProduct, MenuItem, Offering, Stall } from '@/lib/types/event-domain';
 import { useCart } from '@/lib/cart-context';
 import { useEventStore } from '@/lib/event-store';
 import { useEventId } from '@/lib/event-context';

@@ -8,7 +8,7 @@ import {
   Gamepad2, 
   PartyPopper 
 } from 'lucide-react';
-import { Category } from '@/lib/mock-data';
+import type { Category } from '@/lib/types/event-domain';
 import { cn } from '@/lib/utils';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {

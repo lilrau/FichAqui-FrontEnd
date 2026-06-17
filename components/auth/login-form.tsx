@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { useAuth } from '@/lib/auth-context';
 
 export function LoginForm({
@@ -39,8 +40,7 @@ export function LoginForm({
     }
 
     onSuccess?.();
-    const isOrganizer = result.user.roles.includes('organizer');
-    router.push(isOrganizer ? redirectOrganizerTo : redirectClientTo);
+    router.push(resolvePostLoginPath(result.user));
   };
 
   const fillDemo = (demoEmail: string) => {
@@ -111,6 +111,13 @@ export function LoginForm({
               className="rounded-lg bg-background px-2 py-1 border border-border"
             >
               Organizador
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemo('atendente@email.com')}
+              className="rounded-lg bg-background px-2 py-1 border border-border"
+            >
+              Atendente
             </button>
           </div>
           <p>Senha: 123456</p>
