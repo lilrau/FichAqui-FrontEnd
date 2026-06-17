@@ -9,6 +9,7 @@ import { useCart } from '@/lib/cart-context';
 import { useEventStore } from '@/lib/event-store';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
+import { ConsumerLoading } from '@/components/consumer-loading';
 import { ProductPriceDisplay } from '@/components/product-price-display';
 import { MenuVariantRow } from '@/components/menu-item-card';
 import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
@@ -38,7 +39,7 @@ export default function ProductPage({ params }: ProductPageProps) {
   }, [product, router, eventId]);
 
   if (!product || !product.available) {
-    return null;
+    return <ConsumerLoading />;
   }
 
   return (

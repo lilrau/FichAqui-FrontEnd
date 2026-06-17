@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { Wallet, Plus, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ConsumerLoading } from '@/components/consumer-loading';
 import { useCart } from '@/lib/cart-context';
 import { Ficha, mockWalletBalance } from '@/lib/mock-data';
 import { FichaCard } from '@/components/ficha-card';
@@ -256,7 +257,7 @@ function CarteiraContent() {
 
 export default function CarteiraPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<ConsumerLoading />}>
       <CarteiraContent />
     </Suspense>
   );

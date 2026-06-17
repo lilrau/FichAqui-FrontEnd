@@ -31,7 +31,11 @@ export default function AdminRootLayout({
   }
 
   if (!isAuthenticated || !hasRole('organizer')) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Carregando…
+      </div>
+    );
   }
 
   return children;
