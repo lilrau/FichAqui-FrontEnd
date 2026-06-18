@@ -91,7 +91,7 @@ export interface Stall {
   stock: number;
 }
 
-export type OrderStatus = 'available' | 'delivered';
+export type OrderStatus = 'pending_payment' | 'payment_failed' | 'available' | 'delivered';
 
 export interface Order {
   id: string;
@@ -132,6 +132,8 @@ export interface Event {
   primaryColor: string;
   code?: string;
   icon?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export function getFichasFromOrder(order: Order): Ficha[] {

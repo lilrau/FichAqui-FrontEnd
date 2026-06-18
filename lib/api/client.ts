@@ -7,8 +7,33 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   auth?: boolean;
 };
 
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function readXsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+async function fetchCsrfCookie(): Promise<void> {
+  await fetch(`${getApiBaseUrl()}/sanctum/csrf-cookie`, {
+    credentials: 'include',
+  });
+}
+
+async function applyCsrfHeader(headers: Headers): Promise<void> {
+  if (!readXsrfToken()) {
+    await fetchCsrfCookie();
+  }
+  const xsrf = readXsrfToken();
+  if (xsrf) {
+    headers.set('X-XSRF-TOKEN', xsrf);
+  }
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, auth = false, headers: initHeaders, ...init } = options;
+  const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(initHeaders);
 
   if (body !== undefined) {
@@ -25,11 +50,25 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  if (MUTATING_METHODS.has(method)) {
+    await applyCsrfHeader(headers);
+  }
+
+  const request = () =>
+    fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      headers,
+      credentials: 'include',
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+  let response = await request();
+
+  if (response.status === 419 && MUTATING_METHODS.has(method)) {
+    await fetchCsrfCookie();
+    await applyCsrfHeader(headers);
+    response = await request();
+  }
 
   if (response.status === 204) {
     return undefined as T;

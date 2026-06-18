@@ -1,3 +1,4 @@
+import { hasPendingPix } from '@/lib/api/normalize-payment';
 import {
   createOrderApi,
   normalizeApiOrder,
@@ -70,11 +71,7 @@ export function isCheckoutPaymentFailed(result: CheckoutResult): boolean {
 }
 
 export function needsPixConfirmation(result: CheckoutResult): boolean {
-  return (
-    result.payment?.method === 'pix' &&
-    result.payment.status === 'pending' &&
-    Boolean(result.payment.pix?.copyPaste)
-  );
+  return hasPendingPix(result.payment);
 }
 
 export function hasImmediateFichas(result: CheckoutResult): boolean {

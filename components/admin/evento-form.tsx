@@ -14,11 +14,16 @@ import {
 } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
 import { useCity } from '@/lib/city-context';
-import { cityLabel } from '@/lib/types/city';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
+import {
+  EventAddressField,
+  hasResolvedEventAddress,
+} from '@/components/admin/event-location-fields';
+import { getErrorMessage } from '@/lib/api/errors';
+import { resolveEventAddress } from '@/lib/google-maps/resolve-event-address';
 
 export function EventoForm({ eventId }: { eventId: string }) {
   const { getEventById, updateEvent } = useEventStore();
@@ -27,6 +32,7 @@ export function EventoForm({ eventId }: { eventId: string }) {
   const [event, setEvent] = useState(stored);
   const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (stored) setEvent(stored);
@@ -34,9 +40,26 @@ export function EventoForm({ eventId }: { eventId: string }) {
 
   const handleSave = async () => {
     if (!event) return;
+
     setIsSaving(true);
+    setSaveError(null);
+
     try {
-      await updateEvent(eventId, event);
+      let payload = event;
+
+      if (event.date && !hasResolvedEventAddress(event)) {
+        const resolved = await resolveEventAddress(event, cities);
+        if (!resolved.ok) {
+          setSaveError(resolved.message);
+          return;
+        }
+        payload = { ...event, ...resolved.value };
+        setEvent(payload);
+      }
+
+      await updateEvent(eventId, payload);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, 'Não foi possível salvar o evento.'));
     } finally {
       setIsSaving(false);
     }
@@ -194,33 +217,22 @@ export function EventoForm({ eventId }: { eventId: string }) {
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground">Cidade</label>
-            <select
-              value={event.cityId}
-              onChange={(e) => setEvent({ ...event, cityId: e.target.value })}
-              className="mt-2 w-full h-14 rounded-xl border border-input bg-background px-3 text-base"
-            >
-              {cities.map((city) => (
-                <option key={city.id} value={city.id}>
-                  {cityLabel(city)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-foreground flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
-              Local (endereço)
-            </label>
-            <Input
-              value={event.location}
-              onChange={(e) => setEvent({ ...event, location: e.target.value })}
-              className="mt-2 h-14 rounded-xl"
-              placeholder="Ex: Paróquia São João Batista"
+          {event.date ? (
+            <EventAddressField
+              inputKey={eventId}
+              value={{
+                location: event.location,
+                latitude: event.latitude ?? null,
+                longitude: event.longitude ?? null,
+                cityId: event.cityId,
+              }}
+              cities={cities}
+              onChange={({ location, latitude, longitude, cityId }) =>
+                setEvent({ ...event, location, latitude, longitude, cityId })
+              }
+              disabled={isSaving}
             />
-          </div>
+          ) : null}
 
           {/* Status */}
           <div>
@@ -265,6 +277,14 @@ export function EventoForm({ eventId }: { eventId: string }) {
           </div>
         </div>
       </main>
+
+      {saveError ? (
+        <div className="px-4 pb-2">
+          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {saveError}
+          </p>
+        </div>
+      ) : null}
 
       {/* Fixed Footer */}
       <div className="fixed bottom-0 inset-x-0 bg-background border-t border-border px-4 py-4 pb-8">

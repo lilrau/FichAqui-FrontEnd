@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/client';
+import { normalizePaymentInfo } from '@/lib/api/normalize-payment';
 import type { CardBrand } from '@/lib/card-brand';
 import type { TopUpResponse } from '@/lib/types/payment';
 import type { SavedPaymentCard, WalletData } from '@/lib/types/wallet';
@@ -77,9 +78,19 @@ export async function topUpWallet(payload: {
   paymentMethodId?: string | null;
   saveCard?: boolean;
 }): Promise<TopUpResponse> {
-  return apiRequest<TopUpResponse>('/api/user/wallet/top-up', {
+  const data = await apiRequest<TopUpResponse & Record<string, unknown>>('/api/user/wallet/top-up', {
     method: 'POST',
     auth: true,
     body: payload,
   });
+
+  const payment = normalizePaymentInfo(data.payment ?? data);
+  if (!payment) {
+    throw new Error('Resposta de pagamento inválida.');
+  }
+
+  return {
+    balance: data.balance,
+    payment,
+  };
 }

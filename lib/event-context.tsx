@@ -11,7 +11,6 @@ import React, {
 } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  DEFAULT_EVENT_ID,
   parseEventIdFromPath,
   readStoredActiveEventId,
   writeStoredActiveEventId,
@@ -35,14 +34,14 @@ function resolveActiveEventId(
   isEventValid: (id: string) => boolean,
   events: Event[]
 ): string {
-  const candidates = [adminEventId, queryEventId, storedId, DEFAULT_EVENT_ID];
+  const candidates = [adminEventId, queryEventId, storedId];
   for (const id of candidates) {
     if (id && isEventValid(id)) return id;
   }
   const fallback =
     events.find((event) => event.status === 'active' || event.status === 'published') ??
     events[0];
-  return fallback?.id ?? DEFAULT_EVENT_ID;
+  return fallback?.id ?? '';
 }
 
 export function EventProvider({ children }: { children: ReactNode }) {
@@ -60,7 +59,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
   const adminEventId = parseEventIdFromPath(pathname);
   const eventFromQuery = searchParams.get('event');
 
-  const [activeEventId, setActiveEventIdState] = useState(DEFAULT_EVENT_ID);
+  const [activeEventId, setActiveEventIdState] = useState('');
   const [hydrated, setHydrated] = useState(false);
   const [scopeReady, setScopeReady] = useState(false);
 
@@ -86,6 +85,11 @@ export function EventProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!storeHydrated || !hydrated) return;
 
+    if (!activeEventId || !isEventValid(activeEventId)) {
+      setScopeReady(true);
+      return;
+    }
+
     let cancelled = false;
     setScopeReady(false);
 
@@ -100,13 +104,13 @@ export function EventProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [storeHydrated, hydrated, activeEventId, ensureEventLoaded]);
+  }, [storeHydrated, hydrated, activeEventId, ensureEventLoaded, isEventValid]);
 
   const setActiveEventId = useCallback(
     (id: string | null) => {
-      const nextId = id && isEventValid(id) ? id : DEFAULT_EVENT_ID;
+      const nextId = id && isEventValid(id) ? id : '';
       setActiveEventIdState(nextId);
-      writeStoredActiveEventId(nextId);
+      writeStoredActiveEventId(nextId || null);
 
       if (pathname?.startsWith('/admin/') && adminEventId) {
         const suffix = pathname.replace(/^\/admin\/[^/]+/, '') || '';
@@ -123,14 +127,17 @@ export function EventProvider({ children }: { children: ReactNode }) {
 
   const primaryColor = activeEvent?.primaryColor ?? '#d97706';
 
+  const eventScopeReady =
+    !activeEventId || !isEventValid(activeEventId) || isEventScopeLoaded(activeEventId);
+
   const value = useMemo(
     () => ({
-      hydrated: hydrated && scopeReady && isEventScopeLoaded(activeEventId),
+      hydrated: hydrated && scopeReady && eventScopeReady,
       activeEventId,
       activeEvent,
       setActiveEventId,
     }),
-    [hydrated, scopeReady, isEventScopeLoaded, activeEventId, activeEvent, setActiveEventId]
+    [hydrated, scopeReady, eventScopeReady, activeEventId, activeEvent, setActiveEventId]
   );
 
   return (
@@ -151,7 +158,7 @@ export function useActiveEvent() {
 export function useEventId(): string {
   const { activeEventId, hydrated } = useActiveEvent();
   const { hydrated: storeHydrated } = useEventStore();
-  return storeHydrated && hydrated ? activeEventId : DEFAULT_EVENT_ID;
+  return storeHydrated && hydrated ? activeEventId : '';
 }
 
 export function useAppReady(): boolean {

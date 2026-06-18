@@ -213,4 +213,8 @@
   .page-transition-screen {
     opacity: 0;
   }
+
+  .pac-container {
+    z-index: 10000 !important;
+  }
 }

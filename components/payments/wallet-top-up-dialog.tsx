@@ -6,6 +6,7 @@ import { MpCardForm, type MpCardFormHandle } from '@/components/payments/mp-card
 import { Button } from '@/components/ui/button';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import { topUpWallet, fetchWallet } from '@/lib/api/wallet';
+import { hasPendingPix } from '@/lib/api/normalize-payment';
 import { getErrorMessage } from '@/lib/api/errors';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import type { PaymentInfo } from '@/lib/types/payment';
@@ -65,7 +66,7 @@ export function WalletTopUpDialog({
         saveCard: method === 'card' && cardMode === 'new' ? saveCard : false,
       });
 
-      if (result.payment.method === 'pix' && result.payment.status === 'pending') {
+      if (hasPendingPix(result.payment)) {
         setPixPayment(result.payment);
         return;
       }

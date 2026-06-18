@@ -33,6 +33,8 @@ export type CreateEventPayload = {
   capacity?: number;
   primaryColor?: string;
   icon?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export interface CreateEventResponse {

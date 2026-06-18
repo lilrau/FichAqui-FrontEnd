@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Check } from 'lucide-react';
+import { FichaQrCode } from '@/components/ficha-qr-code';
 import { Button } from '@/components/ui/button';
 import { usePaymentStatusPoll } from '@/lib/hooks/use-payment-status-poll';
 import type { PaymentInfo } from '@/lib/types/payment';
@@ -27,6 +28,7 @@ export function PixPaymentPanel({
 
   const pix = livePayment?.pix ?? payment.pix;
   const copyPaste = pix?.copyPaste ?? '';
+  const qrImage = pix?.qrCode?.trim() ?? '';
 
   useEffect(() => {
     if (isApproved) onApproved();
@@ -63,13 +65,21 @@ export function PixPaymentPanel({
             </p>
           </div>
 
-          {pix?.qrCode && (
+          {(qrImage || copyPaste) && (
             <div className="flex justify-center rounded-2xl border border-border bg-card p-6">
-              <img
-                src={pix.qrCode.startsWith('data:') ? pix.qrCode : `data:image/png;base64,${pix.qrCode}`}
-                alt="QR code PIX"
-                className="h-48 w-48 object-contain"
-              />
+              {qrImage ? (
+                <img
+                  src={
+                    qrImage.startsWith('data:')
+                      ? qrImage
+                      : `data:image/png;base64,${qrImage}`
+                  }
+                  alt="QR code PIX"
+                  className="h-48 w-48 object-contain"
+                />
+              ) : (
+                <FichaQrCode qrCode={copyPaste} size="md" />
+              )}
             </div>
           )}
 

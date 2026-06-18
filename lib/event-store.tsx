@@ -19,7 +19,7 @@ import {
   toUpsertOfferingPayload,
 } from '@/lib/api/offerings';
 import { createStallApi, fetchStalls, updateStallApi } from '@/lib/api/stalls';
-import { getErrorMessage } from '@/lib/api/errors';
+import { ApiError, getErrorMessage } from '@/lib/api/errors';
 import {
   buildCardapioForEvent,
   buildMenuItemsFromOfferings,
@@ -132,6 +132,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
 
   const ensureEventLoaded = useCallback(
     async (eventId: string) => {
+      if (!eventId) return;
       if (loadedEventIdsRef.current.has(eventId)) return;
       if (loadingEventIdsRef.current.has(eventId)) return;
 
@@ -147,6 +148,14 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
           ...offeringsData,
         ]);
         markEventLoaded(eventId);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          setStalls((prev) => prev.filter((stall) => stall.eventId !== eventId));
+          setOfferings((prev) => prev.filter((offering) => offering.eventId !== eventId));
+          markEventLoaded(eventId);
+          return;
+        }
+        throw error;
       } finally {
         loadingEventIdsRef.current.delete(eventId);
       }
@@ -246,6 +255,8 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
         capacity: input.capacity,
         primaryColor: input.primaryColor,
         icon: input.icon,
+        latitude: input.latitude,
+        longitude: input.longitude,
       });
 
       setEvents((prev) => [...prev, event]);

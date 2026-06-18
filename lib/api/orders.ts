@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api/client';
+import { normalizePaymentInfo } from '@/lib/api/normalize-payment';
 import { resolveProductImage } from '@/lib/catalog/product-images';
 import type { AdminOrder } from '@/lib/types/admin-order';
 import type { Ficha, MenuItem, Order, OrderStatus } from '@/lib/types/event-domain';
@@ -171,18 +172,19 @@ export async function fetchEventPedidos(eventId: string): Promise<AdminOrder[]> 
 
 function normalizeCreateOrderResponse(raw: ApiOrder | CreateOrderResponse): CreateOrderResponse {
   if ('order' in raw && raw.order) {
+    const paymentSource = (raw.payment ?? raw) as unknown as Record<string, unknown>;
     return {
       order: raw.order,
-      payment: raw.payment ?? null,
+      payment: normalizePaymentInfo(paymentSource),
       fichas: raw.fichas ?? raw.order.fichas ?? [],
     };
   }
 
-  const legacy = raw as ApiOrder;
+  const flat = raw as ApiOrder & Record<string, unknown>;
   return {
-    order: legacy,
-    payment: null,
-    fichas: legacy.fichas ?? [],
+    order: flat,
+    payment: normalizePaymentInfo(flat),
+    fichas: flat.fichas ?? [],
   };
 }
 

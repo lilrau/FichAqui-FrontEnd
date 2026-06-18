@@ -7,15 +7,20 @@ import { ChevronLeft, Save } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useCity } from '@/lib/city-context';
 import { useEventStore } from '@/lib/event-store';
-import { cityLabel } from '@/lib/types/city';
 import type { Event } from '@/lib/types/event-domain';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  EventAddressField,
+  hasResolvedEventAddress,
+} from '@/components/admin/event-location-fields';
+import { getErrorMessage } from '@/lib/api/errors';
+import { resolveEventAddress } from '@/lib/google-maps/resolve-event-address';
 
 export default function NovoEventoPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { selectedCityId, cities } = useCity();
+  const { cities } = useCity();
   const { createEvent } = useEventStore();
 
   const [event, setEvent] = useState<Omit<Event, 'id'>>({
@@ -25,26 +30,46 @@ export default function NovoEventoPage() {
     startTime: '18:00',
     endTime: '23:00',
     location: '',
-    cityId: selectedCityId ?? cities[0]?.id ?? '',
+    cityId: '',
     organizerId: user?.organizerId ?? '',
     banner: '/festa-banner.jpg',
     status: 'draft',
     capacity: 200,
     primaryColor: '#d97706',
     icon: '🎪',
+    latitude: null,
+    longitude: null,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSave = async () => {
     if (!event.name.trim() || !user?.organizerId) return;
+
     setIsSaving(true);
+    setSaveError(null);
+
     try {
+      let payload = event;
+
+      if (event.date && !hasResolvedEventAddress(event)) {
+        const resolved = await resolveEventAddress(event, cities);
+        if (!resolved.ok) {
+          setSaveError(resolved.message);
+          return;
+        }
+        payload = { ...event, ...resolved.value };
+        setEvent(payload);
+      }
+
       const created = await createEvent({
-        ...event,
+        ...payload,
         organizerId: user.organizerId,
         status: 'draft',
       });
       router.push(`/admin/${created.id}`);
+    } catch (error) {
+      setSaveError(getErrorMessage(error, 'Não foi possível criar o evento.'));
     } finally {
       setIsSaving(false);
     }
@@ -78,20 +103,6 @@ export default function NovoEventoPage() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-foreground">Cidade</label>
-          <select
-            value={event.cityId}
-            onChange={(e) => setEvent({ ...event, cityId: e.target.value })}
-            className="mt-2 w-full h-14 rounded-xl border border-input bg-background px-3 text-base"
-          >
-            {cities.map((city) => (
-              <option key={city.id} value={city.id}>
-                {cityLabel(city)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
           <label className="text-sm font-medium text-foreground">Descrição</label>
           <textarea
             value={event.description}
@@ -100,15 +111,21 @@ export default function NovoEventoPage() {
             placeholder="Descreva o evento..."
           />
         </div>
-        <div>
-          <label className="text-sm font-medium text-foreground">Local (endereço / local)</label>
-          <Input
-            value={event.location}
-            onChange={(e) => setEvent({ ...event, location: e.target.value })}
-            className="mt-2 h-14 rounded-xl"
-            placeholder="Ex: Paróquia São João Batista"
+        {event.date ? (
+          <EventAddressField
+            value={{
+              location: event.location,
+              latitude: event.latitude ?? null,
+              longitude: event.longitude ?? null,
+              cityId: event.cityId,
+            }}
+            cities={cities}
+            onChange={({ location, latitude, longitude, cityId }) =>
+              setEvent({ ...event, location, latitude, longitude, cityId })
+            }
+            disabled={isSaving}
           />
-        </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-sm font-medium text-foreground">Data</label>
@@ -132,6 +149,14 @@ export default function NovoEventoPage() {
           </div>
         </div>
       </main>
+
+      {saveError ? (
+        <div className="px-4 pb-2">
+          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {saveError}
+          </p>
+        </div>
+      ) : null}
 
       <div className="fixed bottom-0 inset-x-0 bg-background border-t border-border px-4 py-4 pb-8">
         <Button

@@ -1,7 +1,8 @@
 export function getApiBaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_API_URL;
-  if (!url) {
-    throw new Error('NEXT_PUBLIC_API_URL não está definido.');
+  if (url) {
+    return url.replace(/\/$/, '');
   }
-  return url.replace(/\/$/, '');
+  // Same-origin proxy via Next.js rewrites (see next.config.mjs).
+  return '';
 }
