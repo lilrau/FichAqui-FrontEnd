@@ -156,7 +156,6 @@ function PedidoContent() {
     if (paymentMethod === 'card' && !canPayWithCard) return;
 
     setIsConfirming(true);
-    setPaymentFlow('processing');
     setPaymentError(null);
 
     try {
@@ -171,6 +170,8 @@ function PedidoContent() {
         cardToken = tokenResult.token;
         paymentMethodId = tokenResult.paymentMethodId;
       }
+
+      setPaymentFlow('processing');
 
       const result = await checkoutOrder(eventId, items, paymentMethod, {
         cardId: paymentMethod === 'card' && cardMode === 'saved' ? selectedCardId : null,

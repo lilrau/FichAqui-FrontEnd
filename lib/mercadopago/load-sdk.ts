@@ -33,23 +33,51 @@ export function loadMercadoPagoSdk(): Promise<void> {
   return sdkPromise;
 }
 
+export interface MpIdentificationType {
+  id: string;
+  name: string;
+}
+
+export interface MpFieldChangeData {
+  fieldLength?: number;
+}
+
+export interface MpBinChangeData {
+  bin?: string;
+}
+
+export interface MpSecureField {
+  mount: (elementId: string) => MpSecureField;
+  unmount: () => void;
+  on: (
+    event: 'binChange' | 'change' | 'focus' | 'blur' | 'validityChange' | 'ready',
+    callback: (data: MpFieldChangeData & MpBinChangeData) => void
+  ) => void;
+  update: (options: Record<string, unknown>) => void;
+}
+
+export interface MpFieldsApi {
+  create: (fieldType: 'cardNumber' | 'expirationDate' | 'securityCode', options?: { placeholder?: string }) => MpSecureField;
+  createCardToken: (options: {
+    cardholderName: string;
+    identificationType: string;
+    identificationNumber: string;
+  }) => Promise<{ id: string }>;
+}
+
+export interface MercadoPagoInstance {
+  fields: MpFieldsApi;
+  getIdentificationTypes: () => Promise<MpIdentificationType[]>;
+  getPaymentMethods: (options: { bin: string }) => Promise<{
+    results: Array<{ id: string; settings?: Array<{ card_number?: unknown; security_code?: unknown }> }>;
+  }>;
+}
+
 export function createMercadoPago(publicKey: string): MercadoPagoInstance {
   if (!window.MercadoPago) {
     throw new Error('Mercado Pago SDK não carregado');
   }
   return new window.MercadoPago(publicKey, { locale: 'pt-BR' });
-}
-
-export interface MercadoPagoCardForm {
-  createCardToken: () => Promise<{
-    token?: string;
-    paymentMethodId?: string;
-    payment_method_id?: string;
-  }>;
-}
-
-export interface MercadoPagoInstance {
-  cardForm: (options: Record<string, unknown>) => MercadoPagoCardForm;
 }
 
 declare global {
