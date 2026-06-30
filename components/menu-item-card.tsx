@@ -14,6 +14,7 @@ import {
   offeringVariantToMenuItem,
 } from '@/lib/menu-utils';
 import { ProductPriceDisplay, VariantPriceDisplay } from '@/components/product-price-display';
+import { ProductImage } from '@/components/product-image';
 import { cn } from '@/lib/utils';
 import type { OfferingVariant } from '@/lib/types/event-domain';
 
@@ -92,8 +93,13 @@ function CardapioProductCard({ entry }: { entry: CardapioProduct }) {
         </div>
       )}
 
-      <div className="flex h-28 items-center justify-center bg-gradient-to-br from-secondary to-muted">
-        <span className="text-6xl">{entry.product.image}</span>
+      <div className="relative flex h-28 w-full items-center justify-center overflow-hidden bg-gradient-to-br from-secondary to-muted">
+        <ProductImage
+          src={entry.product.image}
+          alt={entry.product.name}
+          className="h-full w-full object-cover"
+          emojiClassName="text-6xl"
+        />
       </div>
 
       <div className="p-4">
@@ -185,8 +191,13 @@ function MenuItemCardCompact({
           </div>
         )}
 
-        <div className="flex h-28 items-center justify-center bg-gradient-to-br from-secondary to-muted">
-          <span className="text-6xl">{item.image}</span>
+        <div className="relative flex h-28 w-full items-center justify-center overflow-hidden bg-gradient-to-br from-secondary to-muted">
+          <ProductImage
+            src={item.image}
+            alt={item.name}
+            className="h-full w-full object-cover"
+            emojiClassName="text-6xl"
+          />
         </div>
 
         <div className="p-4">
@@ -231,8 +242,13 @@ function MenuItemCardCompact({
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-3 rounded-xl bg-card p-3 shadow-sm border border-border"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-2xl">
-        {item.image}
+      <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-secondary">
+        <ProductImage
+          src={item.image}
+          alt={item.name}
+          className="h-full w-full object-cover"
+          emojiClassName="text-2xl"
+        />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-card-foreground truncate">{item.name}</p>
@@ -287,8 +303,13 @@ export function OfferingVariantRow({
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-3 rounded-xl bg-card p-3 shadow-sm border border-border"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-2xl">
-        {product.image}
+      <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-secondary">
+        <ProductImage
+          src={product.image}
+          alt={product.name}
+          className="h-full w-full object-cover"
+          emojiClassName="text-2xl"
+        />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-card-foreground truncate">

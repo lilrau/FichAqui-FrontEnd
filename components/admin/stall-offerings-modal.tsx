@@ -7,6 +7,7 @@ import { useEventStore } from '@/lib/event-store';
 import { createOfferingFromCatalogProduct } from '@/lib/catalog/create-offering';
 import type { CatalogProduct, Offering, OfferingVariant, Stall } from '@/lib/types/event-domain';
 import { Button } from '@/components/ui/button';
+import { ProductImage } from '@/components/product-image';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -109,7 +110,14 @@ export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-2xl">{product.image}</span>
+                      <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-secondary shrink-0">
+                        <ProductImage
+                          src={product.image}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                          emojiClassName="text-2xl"
+                        />
+                      </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground truncate">{product.name}</p>
                         <p className="text-xs text-muted-foreground">{product.category}</p>
@@ -203,7 +211,14 @@ export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps
                         'transition-colors hover:bg-secondary/50'
                       )}
                     >
-                      <span className="text-2xl">{product.image}</span>
+                      <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-secondary shrink-0">
+                        <ProductImage
+                          src={product.image}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                          emojiClassName="text-2xl"
+                        />
+                      </div>
                       <div className="min-w-0">
                         <p className="font-medium text-foreground">{product.name}</p>
                         <p className="text-xs text-muted-foreground line-clamp-1">

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, X, Minus, Plus, Trash2 } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { Button } from '@/components/ui/button';
+import { ProductImage } from '@/components/product-image';
 import { cn } from '@/lib/utils';
 
 interface CartSheetProps {
@@ -90,8 +91,13 @@ export function CartSheet({ isOpen, onClose, onCheckout }: CartSheetProps) {
                       exit={{ opacity: 0, x: -20 }}
                       className="flex items-center gap-3 rounded-xl bg-secondary/50 p-3"
                     >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-card text-2xl shadow-sm">
-                        {cartItem.item.image}
+                      <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg bg-card shadow-sm">
+                        <ProductImage
+                          src={cartItem.item.image}
+                          alt={cartItem.item.name}
+                          className="h-full w-full object-cover"
+                          emojiClassName="text-2xl"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-foreground truncate">

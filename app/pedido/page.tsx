@@ -26,6 +26,7 @@ import type { PaymentInfo } from '@/lib/types/payment';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/menu-item-card';
+import { ProductImage } from '@/components/product-image';
 import {
   PaymentFlowOverlay,
   type PaymentFlowPhase,
@@ -328,8 +329,13 @@ function PedidoContent() {
                 <div className="space-y-3">
                   {currentOrder.items.map((cartItem) => (
                     <div key={cartItem.item.id} className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-xl">
-                        {cartItem.item.image}
+                      <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-secondary">
+                        <ProductImage
+                          src={cartItem.item.image}
+                          alt={cartItem.item.name}
+                          className="h-full w-full object-cover"
+                          emojiClassName="text-xl"
+                        />
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-foreground">
