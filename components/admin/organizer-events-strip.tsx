@@ -5,6 +5,7 @@ import { Calendar, ChevronRight, MapPin } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
+import { isImageUrl } from '@/lib/catalog/product-images';
 import type { Event } from '@/lib/types/event-domain';
 
 const statusLabels: Record<Event['status'], string> = {
@@ -48,10 +49,14 @@ export function OrganizerEventsStrip({
           >
             <div className="flex items-start gap-3">
               <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg"
                 style={{ backgroundColor: `${event.primaryColor}22` }}
               >
-                {event.icon ?? '🎪'}
+                {event.icon && isImageUrl(event.icon) ? (
+                  <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
+                ) : (
+                  event.icon ?? '🎪'
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-foreground truncate">{event.name}</p>

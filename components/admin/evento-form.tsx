@@ -17,6 +17,7 @@ import { useCity } from '@/lib/city-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { isImageUrl } from '@/lib/catalog/product-images';
 import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
 import {
   EventAddressField,
@@ -102,8 +103,12 @@ export function EventoForm({ eventId }: { eventId: string }) {
             exit={{ opacity: 0, height: 0 }}
             className="rounded-2xl overflow-hidden bg-card shadow-lg border border-border"
           >
-            <div className="h-32 bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-              <span className="text-5xl">{event.icon ?? '🎪'}</span>
+            <div className="relative h-32 bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center overflow-hidden">
+              {event.icon && isImageUrl(event.icon) ? (
+                <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-5xl">{event.icon ?? '🎪'}</span>
+              )}
             </div>
             <div className="p-4">
               <h3 className="text-xl font-bold text-foreground">{event.name}</h3>

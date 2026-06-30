@@ -15,6 +15,7 @@ import { useEventStore } from '@/lib/event-store';
 import { useCity } from '@/lib/city-context';
 import { cityLabel } from '@/lib/types/city';
 import { Button } from '@/components/ui/button';
+import { isImageUrl } from '@/lib/catalog/product-images';
 import { cn } from '@/lib/utils';
 
 const statusLabels: Record<string, string> = {
@@ -115,10 +116,14 @@ export default function AdminHubPage() {
                   className="flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-sm active:scale-[0.98] transition-transform"
                 >
                   <div
-                    className="h-12 w-12 rounded-xl flex items-center justify-center text-xl shrink-0"
+                    className="relative h-12 w-12 overflow-hidden rounded-xl flex items-center justify-center text-xl shrink-0"
                     style={{ backgroundColor: `${event.primaryColor}22` }}
                   >
-                    {event.icon ?? '🎪'}
+                    {event.icon && isImageUrl(event.icon) ? (
+                      <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
+                    ) : (
+                      event.icon ?? '🎪'
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground truncate">{event.name}</p>
