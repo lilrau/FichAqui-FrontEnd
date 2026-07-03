@@ -11,6 +11,7 @@ import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
 import { ConsumerLoading } from '@/components/consumer-loading';
 import { ProductPriceDisplay } from '@/components/product-price-display';
+import { ProductImage } from '@/components/product-image';
 import { OfferingVariantRow } from '@/components/menu-item-card';
 import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
 import { Button } from '@/components/ui/button';
@@ -130,7 +131,12 @@ export default function ProductPage({ params }: ProductPageProps) {
                 </span>
               </div>
             )}
-            <span className="text-7xl">{product.image}</span>
+            <ProductImage
+              src={product.image}
+              alt={product.name}
+              className="h-full w-full object-cover"
+              emojiClassName="text-7xl"
+            />
           </div>
 
           <div className="p-4 space-y-3">

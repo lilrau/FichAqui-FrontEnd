@@ -21,6 +21,7 @@ import { useActiveEvent } from '@/lib/event-context';
 import { useEventStore } from '@/lib/event-store';
 import { cityLabel } from '@/lib/types/city';
 import { formatEventDate } from '@/lib/event-routing';
+import { isImageUrl } from '@/lib/catalog/product-images';
 import { cn } from '@/lib/utils';
 import type { Event } from '@/lib/types/event-domain';
 
@@ -208,10 +209,14 @@ export default function HomePage() {
                     <div className="p-4">
                       <div className="flex items-start gap-3">
                         <div
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
+                          className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-2xl"
                           style={{ backgroundColor: `${event.primaryColor}18` }}
                         >
-                          {event.icon ?? '🎪'}
+                          {event.icon && isImageUrl(event.icon) ? (
+                            <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
+                          ) : (
+                            event.icon ?? '🎪'
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
