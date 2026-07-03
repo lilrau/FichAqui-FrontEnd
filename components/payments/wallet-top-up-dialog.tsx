@@ -109,6 +109,7 @@ export function WalletTopUpDialog({
       <div className="fixed inset-0 z-50 bg-background">
         <PixPaymentPanel
           payment={pixPayment}
+          approvedMessage="Atualizando sua carteira?"
           onApproved={() => {
             void (async () => {
               const wallet = await fetchWallet();

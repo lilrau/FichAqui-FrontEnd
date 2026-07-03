@@ -235,9 +235,13 @@ function PedidoContent() {
         payment={pixPayment}
         onApproved={() => {
           void (async () => {
+            const savedCheckout = pixCheckout;
+            setPaymentFlow('processing');
+            setPixPayment(null);
+
             await refreshWallet();
             await refreshUserOrders();
-            const orderId = pixCheckout?.order.id;
+            const orderId = savedCheckout?.order.id;
             if (!orderId) {
               setPaymentFlow('success');
               return;
@@ -245,9 +249,18 @@ function PedidoContent() {
             const orders = await fetchUserPedidos(true);
             const refreshed = orders.find((order) => order.id === orderId);
             const order: Order = {
-              ...(pixCheckout?.order ?? { id: orderId, eventId, items, total, status: 'available', createdAt: new Date(), qrCode: '', number: '' }),
+              ...(savedCheckout?.order ?? {
+                id: orderId,
+                eventId,
+                items,
+                total,
+                status: 'available',
+                createdAt: new Date(),
+                qrCode: '',
+                number: '',
+              }),
               fichas: refreshed?.fichas ?? [],
-              status: refreshed?.status ?? pixCheckout?.order.status ?? 'available',
+              status: refreshed?.status ?? savedCheckout?.order.status ?? 'available',
             };
             await completeCheckoutSuccess(order);
             setPixCheckout(null);

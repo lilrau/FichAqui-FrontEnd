@@ -125,9 +125,12 @@ export function PaymentFlowOverlay({
                 window.setTimeout(onSuccessFinished, SUCCESS_HOLD_MS);
               }}
             />
-            <p className="text-sm text-muted-foreground">
-              Pagamento confirmado
-            </p>
+            <div className="space-y-1">
+              <h1 className="text-xl font-bold text-foreground">Pagamento aprovado!</h1>
+              <p className="text-sm text-muted-foreground">
+                Suas fichas estão sendo liberadas.
+              </p>
+            </div>
           </motion.div>
         )}
       </main>

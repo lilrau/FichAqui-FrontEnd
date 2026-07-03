@@ -1,14 +1,14 @@
-import { hasPendingPix } from '@/lib/api/normalize-payment';
+import { hasPendingPix } from "@/lib/api/normalize-payment";
 import {
   createOrderApi,
   normalizeApiOrder,
   toApiPaymentMethod,
   type CheckoutPaymentMethod,
-} from '@/lib/api/orders';
-import { parseVariantIdFromMenuItem } from '@/lib/catalog/menu-catalog';
-import { resolveProductImage } from '@/lib/catalog/product-images';
-import type { Ficha, MenuItem, Order } from '@/lib/types/event-domain';
-import type { PaymentInfo } from '@/lib/types/payment';
+} from "@/lib/api/orders";
+import { parseVariantIdFromMenuItem } from "@/lib/catalog/menu-catalog";
+import { resolveProductImage } from "@/lib/catalog/product-images";
+import type { Ficha, MenuItem, Order } from "@/lib/types/event-domain";
+import type { PaymentInfo } from "@/lib/types/payment";
 
 export type { CheckoutPaymentMethod };
 
@@ -31,7 +31,7 @@ export async function checkoutOrder(
   eventId: string,
   cartItems: CartLine[],
   paymentMethod: CheckoutPaymentMethod,
-  options?: CheckoutOptions
+  options?: CheckoutOptions,
 ): Promise<CheckoutResult> {
   const response = await createOrderApi(eventId, {
     items: cartItems.map((line) => ({
@@ -40,10 +40,11 @@ export async function checkoutOrder(
       quantity: line.quantity,
     })),
     paymentMethod: toApiPaymentMethod(paymentMethod),
-    cardId: paymentMethod === 'card' ? (options?.cardId ?? null) : null,
-    cardToken: paymentMethod === 'card' ? (options?.cardToken ?? null) : null,
-    paymentMethodId: paymentMethod === 'card' ? (options?.paymentMethodId ?? null) : null,
-    saveCard: paymentMethod === 'card' ? Boolean(options?.saveCard) : false,
+    cardId: paymentMethod === "card" ? (options?.cardId ?? null) : null,
+    cardToken: paymentMethod === "card" ? (options?.cardToken ?? null) : null,
+    paymentMethodId:
+      paymentMethod === "card" ? (options?.paymentMethodId ?? null) : null,
+    saveCard: paymentMethod === "card" ? Boolean(options?.saveCard) : false,
   });
 
   const order = normalizeApiOrder(response.order, cartItems, eventId);
@@ -66,8 +67,8 @@ export async function checkoutOrder(
 }
 
 export function isCheckoutPaymentFailed(result: CheckoutResult): boolean {
-  if (result.payment?.status === 'rejected') return true;
-  return result.order.status === 'payment_failed';
+  if (result.payment?.status === "rejected") return true;
+  return result.order.status === "payment_failed";
 }
 
 export function needsPixConfirmation(result: CheckoutResult): boolean {

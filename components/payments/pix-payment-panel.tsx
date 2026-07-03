@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, CheckCircle2 } from 'lucide-react';
 import { FichaQrCode } from '@/components/ficha-qr-code';
 import { Button } from '@/components/ui/button';
 import { usePaymentStatusPoll } from '@/lib/hooks/use-payment-status-poll';
@@ -13,6 +13,7 @@ interface PixPaymentPanelProps {
   onApproved: () => void;
   onRejected: () => void;
   onCancel: () => void;
+  approvedMessage?: string;
 }
 
 export function PixPaymentPanel({
@@ -20,8 +21,10 @@ export function PixPaymentPanel({
   onApproved,
   onRejected,
   onCancel,
+  approvedMessage = 'Preparando seu pedido?',
 }: PixPaymentPanelProps) {
   const [copied, setCopied] = useState(false);
+  const approvedHandledRef = useRef(false);
   const { payment: livePayment, isApproved, isRejected, error } = usePaymentStatusPoll(
     payment.id
   );
@@ -31,7 +34,9 @@ export function PixPaymentPanel({
   const qrImage = pix?.qrCode?.trim() ?? '';
 
   useEffect(() => {
-    if (isApproved) onApproved();
+    if (!isApproved || approvedHandledRef.current) return;
+    approvedHandledRef.current = true;
+    onApproved();
   }, [isApproved, onApproved]);
 
   useEffect(() => {
@@ -48,6 +53,38 @@ export function PixPaymentPanel({
       /* clipboard unavailable */
     }
   };
+
+  if (isApproved) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <main className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex w-full max-w-sm flex-col items-center gap-6"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: [0, 1.15, 1] }}
+              transition={{ delay: 0.1 }}
+              className="flex h-24 w-24 items-center justify-center rounded-full bg-green-500/10"
+            >
+              <CheckCircle2 className="h-12 w-12 text-green-500" />
+            </motion.div>
+            <div className="space-y-2">
+              <h1 className="text-xl font-bold text-foreground">Pagamento aprovado!</h1>
+              <p className="text-sm text-muted-foreground">{approvedMessage}</p>
+            </div>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+              className="h-8 w-8 rounded-full border-[3px] border-primary border-t-transparent"
+            />
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
