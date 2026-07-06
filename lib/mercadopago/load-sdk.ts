@@ -56,21 +56,45 @@ export interface MpSecureField {
   update: (options: Record<string, unknown>) => void;
 }
 
+export interface MpIssuer {
+  id: string | number;
+  name: string;
+}
+
+export interface MpPaymentMethod {
+  id: string;
+  name?: string;
+  payment_type_id?: string;
+  additional_info_needed?: string[];
+  issuer?: MpIssuer;
+  settings?: Array<{ card_number?: unknown; security_code?: unknown }>;
+}
+
+export interface MpInstallmentOption {
+  installments: number;
+  recommended_message: string;
+}
+
 export interface MpFieldsApi {
   create: (fieldType: 'cardNumber' | 'expirationDate' | 'securityCode', options?: { placeholder?: string }) => MpSecureField;
   createCardToken: (options: {
     cardholderName: string;
     identificationType: string;
     identificationNumber: string;
+    issuerId?: string;
   }) => Promise<{ id: string }>;
 }
 
 export interface MercadoPagoInstance {
   fields: MpFieldsApi;
   getIdentificationTypes: () => Promise<MpIdentificationType[]>;
-  getPaymentMethods: (options: { bin: string }) => Promise<{
-    results: Array<{ id: string; settings?: Array<{ card_number?: unknown; security_code?: unknown }> }>;
-  }>;
+  getPaymentMethods: (options: { bin: string }) => Promise<{ results: MpPaymentMethod[] }>;
+  getIssuers: (options: { paymentMethodId: string; bin: string }) => Promise<MpIssuer[]>;
+  getInstallments: (options: {
+    amount: string;
+    bin: string;
+    paymentTypeId: string;
+  }) => Promise<Array<{ payer_costs: MpInstallmentOption[] }>>;
 }
 
 export function createMercadoPago(publicKey: string): MercadoPagoInstance {

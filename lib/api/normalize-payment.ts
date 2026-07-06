@@ -87,3 +87,11 @@ export function hasPendingPix(payment: PaymentInfo | null | undefined): boolean 
     Boolean(payment.pix?.copyPaste || payment.pix?.qrCode)
   );
 }
+
+export function hasPendingCardPayment(payment: PaymentInfo | null | undefined): boolean {
+  return payment?.method === 'credit_card' && payment.status === 'pending';
+}
+
+export function hasPendingPayment(payment: PaymentInfo | null | undefined): boolean {
+  return payment?.status === 'pending';
+}

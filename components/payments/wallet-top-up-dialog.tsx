@@ -1,12 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { CardPaymentType } from '@/lib/types/payment';
+import { PendingPaymentPanel } from '@/components/payments/pending-payment-panel';
 import { PixPaymentPanel } from '@/components/payments/pix-payment-panel';
 import { MpCardForm, type MpCardFormHandle } from '@/components/payments/mp-card-form';
 import { Button } from '@/components/ui/button';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import { topUpWallet, fetchWallet } from '@/lib/api/wallet';
-import { hasPendingPix } from '@/lib/api/normalize-payment';
+import { hasPendingCardPayment, hasPendingPix } from '@/lib/api/normalize-payment';
 import { getErrorMessage } from '@/lib/api/errors';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import type { PaymentInfo } from '@/lib/types/payment';
@@ -40,18 +42,38 @@ export function WalletTopUpDialog({
   const [saveCard, setSaveCard] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pixPayment, setPixPayment] = useState<PaymentInfo | null>(null);
-
-  if (!open) return null;
+  const [asyncPayment, setAsyncPayment] = useState<PaymentInfo | null>(null);
 
   const parsedAmount = Number.parseFloat(amount.replace(',', '.'));
   const amountValid = Number.isFinite(parsedAmount) && parsedAmount >= 1;
   const mpEnabled = config.enabled && Boolean(config.publicKey);
   const canUsePix = config.pixEnabled;
   const canUseCard = config.cardEnabled && mpEnabled;
-  const canUseSavedCard = canUseCard && savedCards.length > 0;
+  const canUseSavedCard = canUseCard && savedCards.length > 0 && !mpEnabled;
 
-  const handleTopUp = async (cardToken?: string, paymentMethodId?: string) => {
+  useEffect(() => {
+    if (!open) return;
+    if (mpEnabled || savedCards.length === 0) {
+      setCardMode('new');
+    } else {
+      setCardMode('saved');
+    }
+  }, [open, mpEnabled, savedCards.length]);
+
+  useEffect(() => {
+    if (mpEnabled) {
+      setSaveCard(false);
+    }
+  }, [mpEnabled]);
+
+  if (!open) return null;
+
+  const handleTopUp = async (
+    cardToken?: string,
+    paymentMethodId?: string,
+    paymentMethodType?: CardPaymentType,
+    installments = 1
+  ) => {
     if (!amountValid) return;
     setSubmitting(true);
     setError(null);
@@ -63,11 +85,18 @@ export function WalletTopUpDialog({
         cardId: method === 'card' && cardMode === 'saved' ? selectedCardId : null,
         cardToken: cardToken ?? null,
         paymentMethodId: paymentMethodId ?? null,
-        saveCard: method === 'card' && cardMode === 'new' ? saveCard : false,
+        paymentMethodType: paymentMethodType ?? null,
+        installments,
+        saveCard: method === 'card' && cardMode === 'new' && !mpEnabled ? saveCard : false,
       });
 
       if (hasPendingPix(result.payment)) {
-        setPixPayment(result.payment);
+        setAsyncPayment(result.payment);
+        return;
+      }
+
+      if (hasPendingCardPayment(result.payment)) {
+        setAsyncPayment(result.payment);
         return;
       }
 
@@ -93,7 +122,12 @@ export function WalletTopUpDialog({
       try {
         setSubmitting(true);
         const token = await mpFormRef.current.createToken();
-        await handleTopUp(token.token, token.paymentMethodId);
+        await handleTopUp(
+          token.token,
+          token.paymentMethodId,
+          token.paymentMethodType,
+          token.installments
+        );
       } catch (err) {
         setError(getErrorMessage(err, 'Não foi possível validar o cartão.'));
         setSubmitting(false);
@@ -104,28 +138,42 @@ export function WalletTopUpDialog({
     await handleTopUp();
   };
 
-  if (pixPayment) {
+  if (asyncPayment) {
+    const panelProps = {
+      payment: asyncPayment,
+      approvedMessage: 'Atualizando sua carteira?',
+      onApproved: () => {
+        void (async () => {
+          const wallet = await fetchWallet();
+          onSuccess(wallet.balance);
+          onClose();
+        })();
+      },
+      onRejected: () => {
+        setError(
+          hasPendingPix(asyncPayment)
+            ? 'PIX expirado ou recusado.'
+            : 'Pagamento recusado ou não confirmado.'
+        );
+        setAsyncPayment(null);
+      },
+      onCancel: () => {
+        setAsyncPayment(null);
+        onClose();
+      },
+    };
+
     return (
       <div className="fixed inset-0 z-50 bg-background">
-        <PixPaymentPanel
-          payment={pixPayment}
-          approvedMessage="Atualizando sua carteira?"
-          onApproved={() => {
-            void (async () => {
-              const wallet = await fetchWallet();
-              onSuccess(wallet.balance);
-              onClose();
-            })();
-          }}
-          onRejected={() => {
-            setError('PIX expirado ou recusado.');
-            setPixPayment(null);
-          }}
-          onCancel={() => {
-            setPixPayment(null);
-            onClose();
-          }}
-        />
+        {hasPendingPix(asyncPayment) ? (
+          <PixPaymentPanel {...panelProps} />
+        ) : (
+          <PendingPaymentPanel
+            {...panelProps}
+            title="Confirmando recarga"
+            message="Estamos aguardando a confirmação do seu cartão. O saldo será creditado assim que o pagamento for aprovado."
+          />
+        )}
       </div>
     );
   }
@@ -192,28 +240,37 @@ export function WalletTopUpDialog({
 
           {method === 'card' && canUseCard && (
             <div className="space-y-3">
-              {canUseSavedCard && (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCardMode('saved')}
-                    className={cn(
-                      'flex-1 rounded-lg border px-3 py-2 text-sm',
-                      cardMode === 'saved' && 'border-primary bg-primary/5'
-                    )}
-                  >
-                    Cartão salvo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCardMode('new')}
-                    className={cn(
-                      'flex-1 rounded-lg border px-3 py-2 text-sm',
-                      cardMode === 'new' && 'border-primary bg-primary/5'
-                    )}
-                  >
-                    Novo cartão
-                  </button>
+              {savedCards.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={mpEnabled}
+                      onClick={() => setCardMode('saved')}
+                      className={cn(
+                        'flex-1 rounded-lg border px-3 py-2 text-sm',
+                        cardMode === 'saved' && 'border-primary bg-primary/5',
+                        mpEnabled && 'cursor-not-allowed opacity-50'
+                      )}
+                    >
+                      Cartão salvo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCardMode('new')}
+                      className={cn(
+                        'flex-1 rounded-lg border px-3 py-2 text-sm',
+                        cardMode === 'new' && 'border-primary bg-primary/5'
+                      )}
+                    >
+                      Novo cartão
+                    </button>
+                  </div>
+                  {mpEnabled && (
+                    <p className="text-xs text-muted-foreground">
+                      Cartão salvo: disponível em breve.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -246,15 +303,21 @@ export function WalletTopUpDialog({
                     amount={amountValid ? parsedAmount.toFixed(2) : '1.00'}
                     onError={setError}
                   />
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={saveCard}
-                      onChange={(event) => setSaveCard(event.target.checked)}
-                      className="accent-primary"
-                    />
-                    Salvar cartão para próximas compras
-                  </label>
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={saveCard}
+                        disabled={mpEnabled}
+                        onChange={(event) => setSaveCard(event.target.checked)}
+                        className="accent-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                      Salvar cartão para próximas compras
+                    </label>
+                    {mpEnabled && (
+                      <p className="text-xs text-muted-foreground">Disponível em breve.</p>
+                    )}
+                  </div>
                 </>
               ) : null}
             </div>

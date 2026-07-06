@@ -1,7 +1,7 @@
 import { apiRequest } from '@/lib/api/client';
 import { normalizePaymentInfo } from '@/lib/api/normalize-payment';
 import type { CardBrand } from '@/lib/card-brand';
-import type { TopUpResponse } from '@/lib/types/payment';
+import type { CardPaymentType, TopUpResponse } from '@/lib/types/payment';
 import type { SavedPaymentCard, WalletData } from '@/lib/types/wallet';
 
 interface WalletResponse {
@@ -76,6 +76,8 @@ export async function topUpWallet(payload: {
   cardId?: string | null;
   cardToken?: string | null;
   paymentMethodId?: string | null;
+  paymentMethodType?: CardPaymentType | null;
+  installments?: number;
   saveCard?: boolean;
 }): Promise<TopUpResponse> {
   const data = await apiRequest<TopUpResponse & Record<string, unknown>>('/api/user/wallet/top-up', {

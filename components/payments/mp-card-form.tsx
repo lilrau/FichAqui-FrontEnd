@@ -27,9 +27,12 @@ import {
   createMercadoPago,
   loadMercadoPagoSdk,
   type MpIdentificationType,
+  type MpInstallmentOption,
+  type MpIssuer,
+  type MpPaymentMethod,
   type MpSecureField,
 } from '@/lib/mercadopago/load-sdk';
-import type { CardTokenResult } from '@/lib/types/payment';
+import type { CardPaymentType, CardTokenResult } from '@/lib/types/payment';
 import { cn } from '@/lib/utils';
 
 export interface MpCardFormHandle {
@@ -42,6 +45,7 @@ interface MpCardFormProps {
   amount: string;
   className?: string;
   showSubmit?: boolean;
+  showInstallments?: boolean;
   submitLabel?: string;
   disabled?: boolean;
   onReadyChange?: (ready: boolean) => void;
@@ -51,6 +55,15 @@ interface MpCardFormProps {
 
 const inputClassName = 'h-11 rounded-xl';
 const TOKEN_TIMEOUT_MS = 30_000;
+
+const CARD_PAYMENT_TYPES = new Set<CardPaymentType>(['credit_card', 'debit_card']);
+
+function normalizeCardPaymentType(value: string | undefined): CardPaymentType {
+  if (value && CARD_PAYMENT_TYPES.has(value as CardPaymentType)) {
+    return value as CardPaymentType;
+  }
+  return 'credit_card';
+}
 
 function formatCpf(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 11);
@@ -66,9 +79,10 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
   function MpCardForm(
     {
       publicKey,
-      amount: _amount,
+      amount,
       className,
       showSubmit = false,
+      showInstallments = true,
       submitLabel = 'Confirmar cartão',
       disabled = false,
       onReadyChange,
@@ -88,6 +102,8 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
 
     const mpRef = useRef<ReturnType<typeof createMercadoPago> | null>(null);
     const paymentMethodIdRef = useRef('');
+    const paymentTypeIdRef = useRef('credit_card');
+    const currentBinRef = useRef('');
 
     const [ready, setReady] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -95,10 +111,74 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
     const [holderName, setHolderName] = useState('');
     const [identificationType, setIdentificationType] = useState('CPF');
     const [identificationTypes, setIdentificationTypes] = useState<MpIdentificationType[]>([]);
+    const [issuers, setIssuers] = useState<MpIssuer[]>([]);
+    const [selectedIssuerId, setSelectedIssuerId] = useState('');
+    const [issuerRequired, setIssuerRequired] = useState(false);
+    const [installmentOptions, setInstallmentOptions] = useState<MpInstallmentOption[]>([]);
+    const [selectedInstallments, setSelectedInstallments] = useState(1);
+    const [paymentTypeId, setPaymentTypeId] = useState<CardPaymentType>('credit_card');
     const [cardHighlight, setCardHighlight] = useState<CardHighlightField>(null);
     const [cardFlipped, setCardFlipped] = useState(false);
     const [displayDigits, setDisplayDigits] = useState('');
     const [cvv, setCvv] = useState('');
+
+    const clearIssuerAndInstallments = () => {
+      setIssuers([]);
+      setSelectedIssuerId('');
+      setIssuerRequired(false);
+      setInstallmentOptions([]);
+      setSelectedInstallments(1);
+      paymentTypeIdRef.current = 'credit_card';
+      setPaymentTypeId('credit_card');
+    };
+
+    const updateIssuer = async (
+      mp: ReturnType<typeof createMercadoPago>,
+      paymentMethod: MpPaymentMethod,
+      bin: string
+    ) => {
+      const additional = paymentMethod.additional_info_needed ?? [];
+      const needsIssuer = additional.includes('issuer_id');
+      let issuerOptions: MpIssuer[] = [];
+
+      if (paymentMethod.issuer) {
+        issuerOptions = [paymentMethod.issuer];
+      }
+
+      if (needsIssuer) {
+        issuerOptions = await mp.getIssuers({
+          paymentMethodId: paymentMethod.id,
+          bin,
+        });
+      }
+
+      setIssuerRequired(needsIssuer);
+      setIssuers(issuerOptions);
+      if (issuerOptions.length === 1) {
+        setSelectedIssuerId(String(issuerOptions[0].id));
+      } else {
+        setSelectedIssuerId('');
+      }
+    };
+
+    const updateInstallments = async (
+      mp: ReturnType<typeof createMercadoPago>,
+      bin: string,
+      paymentTypeId: string
+    ) => {
+      const installments = await mp.getInstallments({
+        amount,
+        bin,
+        paymentTypeId,
+      });
+      const options = installments[0]?.payer_costs ?? [];
+      setInstallmentOptions(options);
+      const defaultInstallments =
+        paymentTypeId === 'debit_card'
+          ? 1
+          : (options[0]?.installments ?? 1);
+      setSelectedInstallments(defaultInstallments);
+    };
 
     const createToken = async (): Promise<CardTokenResult> => {
       if (!mpRef.current) {
@@ -114,13 +194,30 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
       if (!paymentMethodIdRef.current) {
         throw new Error('Informe um número de cartão válido.');
       }
+      if (issuerRequired && issuers.length > 0 && !selectedIssuerId) {
+        throw new Error('Selecione o banco emissor.');
+      }
+      if (showInstallments && paymentTypeId !== 'debit_card' && installmentOptions.length === 0) {
+        throw new Error('Aguarde o carregamento das parcelas.');
+      }
+
+      const tokenOptions: {
+        cardholderName: string;
+        identificationType: string;
+        identificationNumber: string;
+        issuerId?: string;
+      } = {
+        cardholderName: holderName.trim(),
+        identificationType,
+        identificationNumber: holderCpf.replace(/\D/g, ''),
+      };
+
+      if (selectedIssuerId) {
+        tokenOptions.issuerId = selectedIssuerId;
+      }
 
       const token = await Promise.race([
-        mpRef.current.fields.createCardToken({
-          cardholderName: holderName.trim(),
-          identificationType,
-          identificationNumber: holderCpf.replace(/\D/g, ''),
-        }),
+        mpRef.current.fields.createCardToken(tokenOptions),
         new Promise<never>((_, reject) => {
           window.setTimeout(
             () => reject(new Error('Tempo esgotado ao validar o cartão. Tente novamente.')),
@@ -136,6 +233,9 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
       return {
         token: token.id,
         paymentMethodId: paymentMethodIdRef.current,
+        paymentMethodType: normalizeCardPaymentType(paymentTypeIdRef.current),
+        installments:
+          paymentTypeIdRef.current === 'debit_card' ? 1 : selectedInstallments,
       };
     };
 
@@ -207,8 +307,16 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
 
             if (!bin) {
               paymentMethodIdRef.current = '';
+              currentBinRef.current = '';
+              clearIssuerAndInstallments();
               return;
             }
+
+            if (bin === currentBinRef.current) {
+              return;
+            }
+
+            currentBinRef.current = bin;
 
             try {
               const { results } = await mp.getPaymentMethods({ bin });
@@ -216,6 +324,9 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
               if (!paymentMethod) return;
 
               paymentMethodIdRef.current = paymentMethod.id;
+              const nextPaymentType = normalizeCardPaymentType(paymentMethod.payment_type_id);
+              paymentTypeIdRef.current = nextPaymentType;
+              setPaymentTypeId(nextPaymentType);
 
               const settings = paymentMethod.settings?.[0];
               if (settings?.card_number) {
@@ -224,8 +335,14 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
               if (settings?.security_code) {
                 securityField?.update({ settings: settings.security_code });
               }
+
+              await updateIssuer(mp, paymentMethod, bin);
+              if (showInstallments) {
+                await updateInstallments(mp, bin, paymentTypeIdRef.current);
+              }
             } catch {
               paymentMethodIdRef.current = '';
+              clearIssuerAndInstallments();
             }
           });
 
@@ -276,9 +393,29 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
         expirationField?.unmount();
         securityField?.unmount();
         mpRef.current = null;
+        currentBinRef.current = '';
         setReady(false);
       };
-    }, [publicKey, cardNumberMountId, expirationMountId, securityMountId, onError]);
+    }, [
+      publicKey,
+      amount,
+      showInstallments,
+      cardNumberMountId,
+      expirationMountId,
+      securityMountId,
+      onError,
+    ]);
+
+    useEffect(() => {
+      const mp = mpRef.current;
+      const bin = currentBinRef.current;
+      if (!mp || !bin || !showInstallments) return;
+
+      void updateInstallments(mp, bin, paymentTypeIdRef.current).catch(() => {
+        setInstallmentOptions([]);
+        setSelectedInstallments(1);
+      });
+    }, [amount, showInstallments]);
 
     const handleSubmit = async (event: React.FormEvent) => {
       event.preventDefault();
@@ -388,6 +525,53 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
                   {identificationTypes.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {issuers.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor={`${uid}-issuer`}>Banco emissor</Label>
+              <Select
+                value={selectedIssuerId}
+                onValueChange={setSelectedIssuerId}
+                disabled={disabled}
+              >
+                <SelectTrigger id={`${uid}-issuer`} className={`${inputClassName} w-full`}>
+                  <SelectValue placeholder="Selecione o banco emissor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {issuers.map((issuer) => (
+                    <SelectItem key={String(issuer.id)} value={String(issuer.id)}>
+                      {issuer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {showInstallments && installmentOptions.length > 0 && paymentTypeId !== 'debit_card' && (
+            <div className="space-y-2">
+              <Label htmlFor={`${uid}-installments`}>Parcelas</Label>
+              <Select
+                value={String(selectedInstallments)}
+                onValueChange={(value) => setSelectedInstallments(Number.parseInt(value, 10))}
+                disabled={disabled}
+              >
+                <SelectTrigger id={`${uid}-installments`} className={`${inputClassName} w-full`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {installmentOptions.map((option) => (
+                    <SelectItem
+                      key={option.installments}
+                      value={String(option.installments)}
+                    >
+                      {option.recommended_message}
                     </SelectItem>
                   ))}
                 </SelectContent>

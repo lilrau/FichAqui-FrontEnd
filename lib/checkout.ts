@@ -1,4 +1,4 @@
-import { hasPendingPix } from "@/lib/api/normalize-payment";
+import { hasPendingCardPayment, hasPendingPix } from "@/lib/api/normalize-payment";
 import {
   createOrderApi,
   normalizeApiOrder,
@@ -8,7 +8,7 @@ import {
 import { parseVariantIdFromMenuItem } from "@/lib/catalog/menu-catalog";
 import { resolveProductImage } from "@/lib/catalog/product-images";
 import type { Ficha, MenuItem, Order } from "@/lib/types/event-domain";
-import type { PaymentInfo } from "@/lib/types/payment";
+import type { CardPaymentType, PaymentInfo } from '@/lib/types/payment';
 
 export type { CheckoutPaymentMethod };
 
@@ -18,6 +18,8 @@ export interface CheckoutOptions {
   cardId?: string | null;
   cardToken?: string | null;
   paymentMethodId?: string | null;
+  paymentMethodType?: CardPaymentType | null;
+  installments?: number;
   saveCard?: boolean;
 }
 
@@ -44,6 +46,9 @@ export async function checkoutOrder(
     cardToken: paymentMethod === "card" ? (options?.cardToken ?? null) : null,
     paymentMethodId:
       paymentMethod === "card" ? (options?.paymentMethodId ?? null) : null,
+    paymentMethodType:
+      paymentMethod === "card" ? (options?.paymentMethodType ?? null) : null,
+    installments: paymentMethod === "card" ? (options?.installments ?? 1) : undefined,
     saveCard: paymentMethod === "card" ? Boolean(options?.saveCard) : false,
   });
 
@@ -73,6 +78,17 @@ export function isCheckoutPaymentFailed(result: CheckoutResult): boolean {
 
 export function needsPixConfirmation(result: CheckoutResult): boolean {
   return hasPendingPix(result.payment);
+}
+
+export function needsCardPaymentConfirmation(result: CheckoutResult): boolean {
+  return hasPendingCardPayment(result.payment);
+}
+
+export function needsAsyncPaymentConfirmation(result: CheckoutResult): boolean {
+  return (
+    (needsPixConfirmation(result) || needsCardPaymentConfirmation(result)) &&
+    !hasImmediateFichas(result)
+  );
 }
 
 export function hasImmediateFichas(result: CheckoutResult): boolean {

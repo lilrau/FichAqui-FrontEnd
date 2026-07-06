@@ -9,10 +9,12 @@ import {
   checkoutOrder,
   hasImmediateFichas,
   isCheckoutPaymentFailed,
+  needsCardPaymentConfirmation,
   needsPixConfirmation,
   type CheckoutPaymentMethod,
   type CheckoutResult,
 } from '@/lib/checkout';
+import { hasPendingPix } from '@/lib/api/normalize-payment';
 import { fetchUserPedidos } from '@/lib/api/orders';
 import { getErrorMessage } from '@/lib/api/errors';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
@@ -22,7 +24,7 @@ import { useUserOrders } from '@/lib/user-orders-context';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import { OrderStatus, OrderQRCode } from '@/components/order-status';
 import type { Order } from '@/lib/types/event-domain';
-import type { PaymentInfo } from '@/lib/types/payment';
+import type { CardPaymentType, PaymentInfo } from '@/lib/types/payment';
 import { CardBrandLogo } from '@/components/card-brand-logo';
 import { Button } from '@/components/ui/button';
 import { MenuItemCard } from '@/components/menu-item-card';
@@ -33,6 +35,7 @@ import {
 } from '@/components/payment-flow-overlay';
 import { MpCardForm, type MpCardFormHandle } from '@/components/payments/mp-card-form';
 import { PixPaymentPanel } from '@/components/payments/pix-payment-panel';
+import { PendingPaymentPanel } from '@/components/payments/pending-payment-panel';
 import { cn } from '@/lib/utils';
 
 type PaymentMethod = CheckoutPaymentMethod;
@@ -99,17 +102,18 @@ function PedidoContent() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [paymentFlow, setPaymentFlow] = useState<PaymentFlowPhase | null>(null);
-  const [pixPayment, setPixPayment] = useState<PaymentInfo | null>(null);
+  const [asyncPayment, setAsyncPayment] = useState<PaymentInfo | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('wallet');
   const [cardMode, setCardMode] = useState<CardMode>('saved');
   const [selectedCardId, setSelectedCardId] = useState('');
   const [saveCard, setSaveCard] = useState(false);
   const [mpFormReady, setMpFormReady] = useState(false);
-  const [pixCheckout, setPixCheckout] = useState<CheckoutResult | null>(null);
+  const [asyncCheckout, setAsyncCheckout] = useState<CheckoutResult | null>(null);
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
 
   const mpEnabled = paymentsConfig.enabled && Boolean(paymentsConfig.publicKey);
+  const canUseSavedCardAtCheckout = savedCards.length > 0 && !mpEnabled;
   const cardEnabled =
     paymentsConfig.cardEnabled && (mpEnabled || savedCards.length > 0);
   const pixEnabled = paymentsConfig.pixEnabled;
@@ -121,7 +125,7 @@ function PedidoContent() {
   const canPayWithCard =
     paymentMethod !== 'card' ||
     (cardMode === 'saved'
-      ? savedCards.length > 0 && Boolean(selectedCardId)
+      ? canUseSavedCardAtCheckout && Boolean(selectedCardId)
       : mpEnabled && mpFormReady);
 
   useEffect(() => {
@@ -131,9 +135,16 @@ function PedidoContent() {
   }, [defaultCard]);
 
   useEffect(() => {
-    if (paymentMethod === 'card' && savedCards.length === 0 && mpEnabled) {
+    if (mpEnabled) {
+      setSaveCard(false);
+    }
+  }, [mpEnabled]);
+
+  useEffect(() => {
+    if (paymentMethod !== 'card') return;
+    if (mpEnabled || savedCards.length === 0) {
       setCardMode('new');
-    } else if (savedCards.length > 0) {
+    } else {
       setCardMode('saved');
     }
   }, [paymentMethod, savedCards.length, mpEnabled]);
@@ -152,6 +163,37 @@ function PedidoContent() {
     setPaymentFlow('success');
   };
 
+  const completeAsyncPayment = async (savedCheckout: CheckoutResult | null) => {
+    setPaymentFlow('processing');
+    setAsyncPayment(null);
+
+    await refreshWallet();
+    await refreshUserOrders();
+    const orderId = savedCheckout?.order.id;
+    if (!orderId) {
+      setPaymentFlow('success');
+      return;
+    }
+    const orders = await fetchUserPedidos(true);
+    const refreshed = orders.find((order) => order.id === orderId);
+    const order: Order = {
+      ...(savedCheckout?.order ?? {
+        id: orderId,
+        eventId,
+        items,
+        total,
+        status: 'available',
+        createdAt: new Date(),
+        qrCode: '',
+        number: '',
+      }),
+      fichas: refreshed?.fichas ?? [],
+      status: refreshed?.status ?? savedCheckout?.order.status ?? 'available',
+    };
+    await completeCheckoutSuccess(order);
+    setAsyncCheckout(null);
+  };
+
   const handleConfirm = async () => {
     if (items.length === 0) return;
     if (paymentMethod === 'card' && !canPayWithCard) return;
@@ -162,6 +204,8 @@ function PedidoContent() {
     try {
       let cardToken: string | undefined;
       let paymentMethodId: string | undefined;
+      let paymentMethodType: CardPaymentType | undefined;
+      let installments = 1;
 
       if (paymentMethod === 'card' && cardMode === 'new') {
         const tokenResult = await mpFormRef.current?.createToken();
@@ -170,6 +214,8 @@ function PedidoContent() {
         }
         cardToken = tokenResult.token;
         paymentMethodId = tokenResult.paymentMethodId;
+        paymentMethodType = tokenResult.paymentMethodType;
+        installments = tokenResult.installments;
       }
 
       setPaymentFlow('processing');
@@ -178,7 +224,10 @@ function PedidoContent() {
         cardId: paymentMethod === 'card' && cardMode === 'saved' ? selectedCardId : null,
         cardToken: cardToken ?? null,
         paymentMethodId: paymentMethodId ?? null,
-        saveCard: paymentMethod === 'card' && cardMode === 'new' ? saveCard : false,
+        paymentMethodType: paymentMethodType ?? null,
+        installments,
+        saveCard:
+          paymentMethod === 'card' && cardMode === 'new' && !mpEnabled ? saveCard : false,
       });
 
       if (isCheckoutPaymentFailed(result)) {
@@ -188,8 +237,16 @@ function PedidoContent() {
       }
 
       if (needsPixConfirmation(result) && result.payment) {
-        setPixCheckout(result);
-        setPixPayment(result.payment);
+        setAsyncCheckout(result);
+        setAsyncPayment(result.payment);
+        setPaymentFlow(null);
+        setIsConfirming(false);
+        return;
+      }
+
+      if (needsCardPaymentConfirmation(result) && result.payment) {
+        setAsyncCheckout(result);
+        setAsyncPayment(result.payment);
         setPaymentFlow(null);
         setIsConfirming(false);
         return;
@@ -212,8 +269,8 @@ function PedidoContent() {
 
   const handleBackToPayment = () => {
     setPaymentFlow(null);
-    setPixPayment(null);
-    setPixCheckout(null);
+    setAsyncPayment(null);
+    setAsyncCheckout(null);
     setPaymentError(null);
     setIsConfirming(false);
     setPendingOrder(null);
@@ -226,56 +283,32 @@ function PedidoContent() {
     }
     setShowSuccess(true);
     setPaymentFlow(null);
-    setPixPayment(null);
+    setAsyncPayment(null);
     setIsConfirming(false);
   };
 
-  if (pixPayment) {
-    return (
-      <PixPaymentPanel
-        payment={pixPayment}
-        onApproved={() => {
-          void (async () => {
-            const savedCheckout = pixCheckout;
-            setPaymentFlow('processing');
-            setPixPayment(null);
+  if (asyncPayment) {
+    const asyncPanelProps = {
+      payment: asyncPayment,
+      onApproved: () => void completeAsyncPayment(asyncCheckout),
+      onRejected: () => {
+        setPaymentError(
+          hasPendingPix(asyncPayment)
+            ? 'PIX expirado ou recusado.'
+            : 'Pagamento recusado ou não confirmado.'
+        );
+        setAsyncPayment(null);
+        setAsyncCheckout(null);
+        setPaymentFlow('error');
+      },
+      onCancel: handleBackToPayment,
+    };
 
-            await refreshWallet();
-            await refreshUserOrders();
-            const orderId = savedCheckout?.order.id;
-            if (!orderId) {
-              setPaymentFlow('success');
-              return;
-            }
-            const orders = await fetchUserPedidos(true);
-            const refreshed = orders.find((order) => order.id === orderId);
-            const order: Order = {
-              ...(savedCheckout?.order ?? {
-                id: orderId,
-                eventId,
-                items,
-                total,
-                status: 'available',
-                createdAt: new Date(),
-                qrCode: '',
-                number: '',
-              }),
-              fichas: refreshed?.fichas ?? [],
-              status: refreshed?.status ?? savedCheckout?.order.status ?? 'available',
-            };
-            await completeCheckoutSuccess(order);
-            setPixCheckout(null);
-          })();
-        }}
-        onRejected={() => {
-          setPaymentError('PIX expirado ou recusado.');
-          setPixPayment(null);
-          setPixCheckout(null);
-          setPaymentFlow('error');
-        }}
-        onCancel={handleBackToPayment}
-      />
-    );
+    if (hasPendingPix(asyncPayment)) {
+      return <PixPaymentPanel {...asyncPanelProps} />;
+    }
+
+    return <PendingPaymentPanel {...asyncPanelProps} />;
   }
 
   if (paymentFlow) {
@@ -513,32 +546,41 @@ function PedidoContent() {
                       className="overflow-hidden"
                     >
                       <div className="mt-3 space-y-3 border-t border-border pt-3">
-                        {savedCards.length > 0 && mpEnabled && (
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setCardMode('saved')}
-                              className={cn(
-                                'flex-1 rounded-lg border px-3 py-2 text-sm',
-                                cardMode === 'saved' && 'border-primary bg-primary/5'
-                              )}
-                            >
-                              Cartão salvo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setCardMode('new')}
-                              className={cn(
-                                'flex-1 rounded-lg border px-3 py-2 text-sm',
-                                cardMode === 'new' && 'border-primary bg-primary/5'
-                              )}
-                            >
-                              Novo cartão
-                            </button>
+                        {savedCards.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={mpEnabled}
+                                onClick={() => setCardMode('saved')}
+                                className={cn(
+                                  'flex-1 rounded-lg border px-3 py-2 text-sm',
+                                  cardMode === 'saved' && 'border-primary bg-primary/5',
+                                  mpEnabled && 'cursor-not-allowed opacity-50'
+                                )}
+                              >
+                                Cartão salvo
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCardMode('new')}
+                                className={cn(
+                                  'flex-1 rounded-lg border px-3 py-2 text-sm',
+                                  cardMode === 'new' && 'border-primary bg-primary/5'
+                                )}
+                              >
+                                Novo cartão
+                              </button>
+                            </div>
+                            {mpEnabled && (
+                              <p className="text-xs text-muted-foreground">
+                                Cartão salvo: disponível em breve.
+                              </p>
+                            )}
                           </div>
                         )}
 
-                        {cardMode === 'saved' && savedCards.length > 0 ? (
+                        {cardMode === 'saved' && canUseSavedCardAtCheckout ? (
                           <>
                             <p className="text-sm font-medium text-muted-foreground">
                               Cartão de crédito para cobrança
@@ -604,15 +646,23 @@ function PedidoContent() {
                               onReadyChange={setMpFormReady}
                               onError={setPaymentError}
                             />
-                            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <input
-                                type="checkbox"
-                                checked={saveCard}
-                                onChange={(event) => setSaveCard(event.target.checked)}
-                                className="accent-primary"
-                              />
-                              Salvar cartão para próximas compras
-                            </label>
+                            <div className="space-y-1">
+                              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <input
+                                  type="checkbox"
+                                  checked={saveCard}
+                                  disabled={mpEnabled}
+                                  onChange={(event) => setSaveCard(event.target.checked)}
+                                  className="accent-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                                Salvar cartão para próximas compras
+                              </label>
+                              {mpEnabled && (
+                                <p className="text-xs text-muted-foreground">
+                                  Disponível em breve.
+                                </p>
+                              )}
+                            </div>
                           </>
                         ) : savedCards.length === 0 ? (
                           <p className="text-sm text-muted-foreground">

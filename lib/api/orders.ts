@@ -4,7 +4,7 @@ import { resolveProductImage } from '@/lib/catalog/product-images';
 import type { AdminOrder } from '@/lib/types/admin-order';
 import type { Ficha, MenuItem, Order, OrderStatus } from '@/lib/types/event-domain';
 import type { ConsumerOrder, ConsumerOrderSummaryItem } from '@/lib/types/consumer-order';
-import type { PaymentInfo } from '@/lib/types/payment';
+import type { CardPaymentType, PaymentInfo } from '@/lib/types/payment';
 
 export type ApiPaymentMethod = 'credit_card' | 'pix' | 'wallet';
 
@@ -27,6 +27,8 @@ export type CreateOrderPayload = {
   cardId?: string | null;
   cardToken?: string | null;
   paymentMethodId?: string | null;
+  paymentMethodType?: CardPaymentType | null;
+  installments?: number;
   saveCard?: boolean;
 };
 

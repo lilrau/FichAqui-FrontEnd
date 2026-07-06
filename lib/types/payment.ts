@@ -1,3 +1,5 @@
+export type CardPaymentType = 'credit_card' | 'debit_card';
+
 export type PaymentMethodKind = 'credit_card' | 'pix' | 'wallet';
 
 export type PaymentStatus = 'pending' | 'approved' | 'rejected';
@@ -28,6 +30,8 @@ export interface PaymentsConfig {
 export interface CardTokenResult {
   token: string;
   paymentMethodId: string;
+  paymentMethodType: CardPaymentType;
+  installments: number;
 }
 
 export interface TopUpPayload {
@@ -36,6 +40,8 @@ export interface TopUpPayload {
   cardId?: string | null;
   cardToken?: string | null;
   paymentMethodId?: string | null;
+  paymentMethodType?: CardPaymentType;
+  installments?: number;
   saveCard?: boolean;
 }
 
