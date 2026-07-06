@@ -85,7 +85,7 @@ function CarteiraContent() {
     searchParams.get('tab') === 'fichas' ? 'fichas' : 'movimentacoes';
   const initialTabIndex = tabs.findIndex((t) => t.id === initialTab);
 
-  const { balance, loadError, savedCards, defaultCard, refreshWallet } = useWallet();
+  const { balance, loadError, refreshWallet } = useWallet();
   const { config: paymentsConfig } = usePaymentsConfig();
   const [topUpOpen, setTopUpOpen] = useState(false);
   const consumerEventId = useConsumerEventId();
@@ -145,8 +145,6 @@ function CarteiraContent() {
           open={topUpOpen}
           onClose={() => setTopUpOpen(false)}
           onSuccess={() => void refreshWallet()}
-          savedCards={savedCards}
-          defaultCardId={defaultCard?.id}
         />
 
         <div className="space-y-4">
