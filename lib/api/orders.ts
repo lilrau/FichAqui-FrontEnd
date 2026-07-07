@@ -28,6 +28,8 @@ export type CreateOrderPayload = {
   cardToken?: string | null;
   paymentMethodId?: string | null;
   paymentMethodType?: CardPaymentType | null;
+  cardholderName?: string | null;
+  cardholderCpf?: string | null;
   installments?: number;
   saveCard?: boolean;
 };

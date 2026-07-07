@@ -19,6 +19,8 @@ export interface CheckoutOptions {
   cardToken?: string | null;
   paymentMethodId?: string | null;
   paymentMethodType?: CardPaymentType | null;
+  cardholderName?: string | null;
+  cardholderCpf?: string | null;
   installments?: number;
   saveCard?: boolean;
 }
@@ -48,6 +50,10 @@ export async function checkoutOrder(
       paymentMethod === "card" ? (options?.paymentMethodId ?? null) : null,
     paymentMethodType:
       paymentMethod === "card" ? (options?.paymentMethodType ?? null) : null,
+    cardholderName:
+      paymentMethod === "card" ? (options?.cardholderName ?? null) : null,
+    cardholderCpf:
+      paymentMethod === "card" ? (options?.cardholderCpf ?? null) : null,
     installments: paymentMethod === "card" ? (options?.installments ?? 1) : undefined,
     saveCard: paymentMethod === "card" ? Boolean(options?.saveCard) : false,
   });

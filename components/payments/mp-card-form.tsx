@@ -707,6 +707,8 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
         paymentMethodType: normalizeCardPaymentType(paymentTypeIdRef.current),
         installments:
           paymentTypeIdRef.current === 'debit_card' ? 1 : installmentsForToken,
+        cardholderName: holderName.trim(),
+        cardholderCpf: holderCpf.replace(/\D/g, ''),
       };
     };
 

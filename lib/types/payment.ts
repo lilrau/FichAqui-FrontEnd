@@ -32,6 +32,8 @@ export interface CardTokenResult {
   paymentMethodId: string;
   paymentMethodType: CardPaymentType;
   installments: number;
+  cardholderName: string;
+  cardholderCpf: string;
 }
 
 export interface TopUpPayload {

@@ -205,6 +205,8 @@ function PedidoContent() {
       let cardToken: string | undefined;
       let paymentMethodId: string | undefined;
       let paymentMethodType: CardPaymentType | undefined;
+      let cardholderName: string | undefined;
+      let cardholderCpf: string | undefined;
       let installments = 1;
 
       if (paymentMethod === 'card' && cardMode === 'new') {
@@ -215,6 +217,8 @@ function PedidoContent() {
         cardToken = tokenResult.token;
         paymentMethodId = tokenResult.paymentMethodId;
         paymentMethodType = tokenResult.paymentMethodType;
+        cardholderName = tokenResult.cardholderName;
+        cardholderCpf = tokenResult.cardholderCpf;
         installments = tokenResult.installments;
       }
 
@@ -225,6 +229,8 @@ function PedidoContent() {
         cardToken: cardToken ?? null,
         paymentMethodId: paymentMethodId ?? null,
         paymentMethodType: paymentMethodType ?? null,
+        cardholderName: cardholderName ?? null,
+        cardholderCpf: cardholderCpf ?? null,
         installments,
         saveCard:
           paymentMethod === 'card' && cardMode === 'new' && !mpEnabled ? saveCard : false,
