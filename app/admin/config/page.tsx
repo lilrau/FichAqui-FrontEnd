@@ -21,9 +21,19 @@ export default function ConfigPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-  const [offlineMode, setOfflineMode] = useState(true);
+  const [offlineMode, setOfflineMode] = useState(false);
 
-  const settingsGroups = [
+  type ConfigItem = {
+    icon: any;
+    label: string;
+    description: string;
+    toggle?: boolean;
+    value?: boolean;
+    onChange?: () => void;
+    link?: boolean;
+  };
+
+  const settingsGroups: Array<{ title: string; items: ConfigItem[] }> = [
     {
       title: 'Preferências',
       items: [

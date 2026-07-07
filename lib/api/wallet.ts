@@ -12,6 +12,7 @@ interface WalletResponse {
     lastFour: string;
     holderName: string;
     isDefault: boolean;
+    mercadoPagoCardId?: string;
   }[];
 }
 
@@ -44,6 +45,7 @@ function normalizeSavedCard(dto: WalletResponse['savedCards'][number]): SavedPay
     lastFour: dto.lastFour,
     holderName: dto.holderName,
     isDefault: dto.isDefault,
+    mercadoPagoCardId: dto.mercadoPagoCardId,
   };
 }
 
@@ -95,4 +97,11 @@ export async function topUpWallet(payload: {
     balance: data.balance,
     payment,
   };
+}
+
+export async function deleteWalletCard(cardId: string): Promise<void> {
+  await apiRequest(`/api/user/wallet/cards/${encodeURIComponent(cardId)}`, {
+    method: 'DELETE',
+    auth: true,
+  });
 }

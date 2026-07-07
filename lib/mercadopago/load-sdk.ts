@@ -112,13 +112,15 @@ export interface MpFieldsApi {
       placeholder?: string;
       style?: MpFieldStyle;
       customFonts?: MpCustomFont[];
+      cardId?: string;
     },
   ) => MpSecureField;
   createCardToken: (options: {
-    cardholderName: string;
-    identificationType: string;
-    identificationNumber: string;
+    cardholderName?: string;
+    identificationType?: string;
+    identificationNumber?: string;
     issuerId?: string;
+    cardId?: string;
   }) => Promise<MpCardTokenResponse>;
 }
 

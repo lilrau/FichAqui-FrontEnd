@@ -34,6 +34,7 @@ import {
   type PaymentFlowPhase,
 } from '@/components/payment-flow-overlay';
 import { MpCardForm, type MpCardFormHandle } from '@/components/payments/mp-card-form';
+import { MpSavedCardForm, type MpSavedCardFormHandle } from '@/components/payments/mp-saved-card-form';
 import { PixPaymentPanel } from '@/components/payments/pix-payment-panel';
 import { PendingPaymentPanel } from '@/components/payments/pending-payment-panel';
 import { cn } from '@/lib/utils';
@@ -98,6 +99,7 @@ function PedidoContent() {
   const { refreshUserOrders } = useUserOrders();
   const { config: paymentsConfig } = usePaymentsConfig();
   const mpFormRef = useRef<MpCardFormHandle>(null);
+  const savedCardFormRef = useRef<MpSavedCardFormHandle>(null);
   const cardapioHref = buildConsumerEventHref('/cardapio', eventId);
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -109,11 +111,12 @@ function PedidoContent() {
   const [selectedCardId, setSelectedCardId] = useState('');
   const [saveCard, setSaveCard] = useState(false);
   const [mpFormReady, setMpFormReady] = useState(false);
+  const [savedCardFormReady, setSavedCardFormReady] = useState(false);
   const [asyncCheckout, setAsyncCheckout] = useState<CheckoutResult | null>(null);
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
 
   const mpEnabled = paymentsConfig.enabled && Boolean(paymentsConfig.publicKey);
-  const canUseSavedCardAtCheckout = savedCards.length > 0 && !mpEnabled;
+  const canUseSavedCardAtCheckout = savedCards.length > 0;
   const cardEnabled =
     paymentsConfig.cardEnabled && (mpEnabled || savedCards.length > 0);
   const pixEnabled = paymentsConfig.pixEnabled;
@@ -125,8 +128,8 @@ function PedidoContent() {
   const canPayWithCard =
     paymentMethod !== 'card' ||
     (cardMode === 'saved'
-      ? canUseSavedCardAtCheckout && Boolean(selectedCardId)
-      : mpEnabled && mpFormReady);
+      ? canUseSavedCardAtCheckout && Boolean(selectedCardId) && (!mpEnabled || savedCardFormReady)
+      : (!mpEnabled || (mpEnabled && mpFormReady)));
 
   useEffect(() => {
     if (defaultCard) {
@@ -209,17 +212,25 @@ function PedidoContent() {
       let cardholderCpf: string | undefined;
       let installments = 1;
 
-      if (paymentMethod === 'card' && cardMode === 'new') {
-        const tokenResult = await mpFormRef.current?.createToken();
-        if (!tokenResult) {
-          throw new Error('Formulário de cartão indisponível.');
+      if (paymentMethod === 'card') {
+        if (cardMode === 'new' && mpEnabled) {
+          const tokenResult = await mpFormRef.current?.createToken();
+          if (!tokenResult) {
+            throw new Error('Formulário de cartão indisponível.');
+          }
+          cardToken = tokenResult.token;
+          paymentMethodId = tokenResult.paymentMethodId;
+          paymentMethodType = tokenResult.paymentMethodType;
+          cardholderName = tokenResult.cardholderName;
+          cardholderCpf = tokenResult.cardholderCpf;
+          installments = tokenResult.installments;
+        } else if (cardMode === 'saved' && mpEnabled) {
+          const token = await savedCardFormRef.current?.createToken();
+          if (!token) {
+            throw new Error('Não foi possível validar o CVV do cartão.');
+          }
+          cardToken = token;
         }
-        cardToken = tokenResult.token;
-        paymentMethodId = tokenResult.paymentMethodId;
-        paymentMethodType = tokenResult.paymentMethodType;
-        cardholderName = tokenResult.cardholderName;
-        cardholderCpf = tokenResult.cardholderCpf;
-        installments = tokenResult.installments;
       }
 
       setPaymentFlow('processing');
@@ -232,8 +243,7 @@ function PedidoContent() {
         cardholderName: cardholderName ?? null,
         cardholderCpf: cardholderCpf ?? null,
         installments,
-        saveCard:
-          paymentMethod === 'card' && cardMode === 'new' && !mpEnabled ? saveCard : false,
+        saveCard: paymentMethod === 'card' && cardMode === 'new' ? saveCard : false,
       });
 
       if (isCheckoutPaymentFailed(result)) {
@@ -557,91 +567,107 @@ function PedidoContent() {
                             <div className="flex gap-2">
                               <button
                                 type="button"
-                                disabled={mpEnabled}
-                                onClick={() => setCardMode('saved')}
+                                onClick={() => {
+                                  setCardMode('saved');
+                                  setSavedCardFormReady(false);
+                                }}
                                 className={cn(
-                                  'flex-1 rounded-lg border px-3 py-2 text-sm',
-                                  cardMode === 'saved' && 'border-primary bg-primary/5',
-                                  mpEnabled && 'cursor-not-allowed opacity-50'
+                                  'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                                  cardMode === 'saved'
+                                    ? 'border-primary bg-primary/5 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted/50'
                                 )}
                               >
-                                Cartão salvo
+                                Cartão salvo ({savedCards.length})
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setCardMode('new')}
                                 className={cn(
-                                  'flex-1 rounded-lg border px-3 py-2 text-sm',
-                                  cardMode === 'new' && 'border-primary bg-primary/5'
+                                  'flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                                  cardMode === 'new'
+                                    ? 'border-primary bg-primary/5 text-primary'
+                                    : 'text-muted-foreground hover:bg-muted/50'
                                 )}
                               >
                                 Novo cartão
                               </button>
                             </div>
-                            {mpEnabled && (
-                              <p className="text-xs text-muted-foreground">
-                                Cartão salvo: disponível em breve.
-                              </p>
-                            )}
                           </div>
                         )}
 
                         {cardMode === 'saved' && canUseSavedCardAtCheckout ? (
                           <>
                             <p className="text-sm font-medium text-muted-foreground">
-                              Cartão de crédito para cobrança
+                              Selecione um cartão salvo
                             </p>
-                            <LayoutGroup id="pedido-payment-card">
+                            <div className="space-y-3">
                               {savedCards.map((card, index) => {
                                 const selected = selectedCardId === card.id;
 
                                 return (
-                                  <motion.label
+                                  <motion.div
                                     key={card.id}
-                                    layout
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.05, ...paymentSelectTransition }}
                                     className={cn(
-                                      'relative flex cursor-pointer items-center gap-3 rounded-xl border p-3',
-                                      !selected && 'border-border bg-background'
+                                      'rounded-xl border transition-all',
+                                      selected
+                                        ? 'border-primary bg-primary/5 shadow-sm'
+                                        : 'border-border bg-background hover:border-border/80'
                                     )}
                                   >
-                                    {selected && (
-                                      <motion.div
-                                        layoutId="pedido-payment-card-active"
-                                        className="absolute inset-0 rounded-xl border border-primary bg-primary/5"
-                                        transition={paymentSelectTransition}
+                                    <label className="flex cursor-pointer items-center gap-3 p-3">
+                                      <input
+                                        type="radio"
+                                        name="payment-card"
+                                        checked={selected}
+                                        onChange={() => {
+                                          setSelectedCardId(card.id);
+                                          setSavedCardFormReady(false);
+                                        }}
+                                        className="h-4 w-4 accent-primary"
                                       />
+                                      <CardBrandLogo
+                                        brand={card.brand}
+                                        className="h-8 w-12 shrink-0"
+                                      />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="font-mono text-sm font-medium text-foreground">
+                                          •••• {card.lastFour}
+                                        </p>
+                                        <p className="truncate text-xs text-muted-foreground">
+                                          {card.holderName}
+                                        </p>
+                                      </div>
+                                      {card.isDefault && (
+                                        <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
+                                          Padrão
+                                        </span>
+                                      )}
+                                    </label>
+                                    {selected && mpEnabled && paymentsConfig.publicKey && (
+                                      <div className="border-t border-primary/10 bg-background/60 px-3 py-3 rounded-b-xl space-y-1.5">
+                                        <label className="text-xs font-semibold text-foreground">
+                                          Código de segurança (CVV)
+                                        </label>
+                                        <div className="max-w-[180px]">
+                                          <MpSavedCardForm
+                                            key={card.id}
+                                            ref={savedCardFormRef}
+                                            publicKey={paymentsConfig.publicKey}
+                                            card={card}
+                                            onReadyChange={setSavedCardFormReady}
+                                            onError={setPaymentError}
+                                          />
+                                        </div>
+                                      </div>
                                     )}
-                                    <input
-                                      type="radio"
-                                      name="payment-card"
-                                      checked={selected}
-                                      onChange={() => setSelectedCardId(card.id)}
-                                      className="relative z-10 h-5 w-5 accent-primary"
-                                    />
-                                    <CardBrandLogo
-                                      brand={card.brand}
-                                      className="relative z-10 h-9 w-14"
-                                    />
-                                    <div className="relative z-10 min-w-0 flex-1">
-                                      <p className="font-mono text-sm font-medium text-foreground">
-                                        •••• {card.lastFour}
-                                      </p>
-                                      <p className="truncate text-xs text-muted-foreground">
-                                        {card.holderName}
-                                      </p>
-                                    </div>
-                                    {card.isDefault && (
-                                      <span className="relative z-10 shrink-0 text-xs font-medium text-primary">
-                                        Padrão
-                                      </span>
-                                    )}
-                                  </motion.label>
+                                  </motion.div>
                                 );
                               })}
-                            </LayoutGroup>
+                            </div>
                           </>
                         ) : mpEnabled && paymentsConfig.publicKey ? (
                           <>
@@ -653,22 +679,16 @@ function PedidoContent() {
                               onReadyChange={setMpFormReady}
                               onError={setPaymentError}
                             />
-                            <div className="space-y-1">
-                              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <div className="pt-1">
+                              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
                                 <input
                                   type="checkbox"
                                   checked={saveCard}
-                                  disabled={mpEnabled}
                                   onChange={(event) => setSaveCard(event.target.checked)}
-                                  className="accent-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="h-4 w-4 rounded accent-primary"
                                 />
                                 Salvar cartão para próximas compras
                               </label>
-                              {mpEnabled && (
-                                <p className="text-xs text-muted-foreground">
-                                  Disponível em breve.
-                                </p>
-                              )}
                             </div>
                           </>
                         ) : savedCards.length === 0 ? (

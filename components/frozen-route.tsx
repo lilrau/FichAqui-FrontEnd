@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 
 function usePreviousValue<T>(value: T): T | undefined {
-  const prevValue = useRef<T>();
+  const prevValue = useRef<T | undefined>(undefined);
 
   useEffect(() => {
     prevValue.current = value;

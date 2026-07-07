@@ -9,6 +9,7 @@ export interface SavedPaymentCard {
   expiryMonth?: string;
   expiryYear?: string;
   isDefault: boolean;
+  mercadoPagoCardId?: string;
 }
 
 export interface WalletData {

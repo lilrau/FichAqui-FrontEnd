@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2 } from 'lucide-react';
 import { SavedCreditCard } from '@/components/saved-credit-card';
 import { MpCardForm } from '@/components/payments/mp-card-form';
 import { Button } from '@/components/ui/button';
-import { addWalletCard } from '@/lib/api/wallet';
+import { addWalletCard, deleteWalletCard } from '@/lib/api/wallet';
 import { getErrorMessage } from '@/lib/api/errors';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import type { CardTokenResult } from '@/lib/types/payment';
@@ -19,10 +19,12 @@ export default function MetodosPagamentoPage() {
   const { config } = usePaymentsConfig();
   const [showAddForm, setShowAddForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const mpReady = config.enabled && config.cardEnabled && Boolean(config.publicKey);
-  const canAddSavedCard = false;
+  const canAddSavedCard = mpReady;
 
   const handleAddCard = async (result: CardTokenResult) => {
     setSubmitting(true);
@@ -38,6 +40,20 @@ export default function MetodosPagamentoPage() {
       setFormError(getErrorMessage(error, 'Não foi possível salvar o cartão.'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteCard = async (cardId: string) => {
+    setDeletingId(cardId);
+    setFormError(null);
+    try {
+      await deleteWalletCard(cardId);
+      await refreshWallet();
+      setConfirmDeleteId(null);
+    } catch (error) {
+      setFormError(getErrorMessage(error, 'Não foi possível remover o cartão.'));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -69,7 +85,13 @@ export default function MetodosPagamentoPage() {
           </p>
         )}
 
-        {mpReady && !showAddForm && (
+        {formError && !showAddForm && (
+          <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {formError}
+          </p>
+        )}
+
+        {!showAddForm && (
           canAddSavedCard ? (
             <Button
               type="button"
@@ -92,7 +114,7 @@ export default function MetodosPagamentoPage() {
                 Adicionar cartão
               </Button>
               <p className="text-center text-xs text-muted-foreground">
-                Disponível em breve.
+                Cartões ficarão disponíveis quando o Mercado Pago estiver configurado.
               </p>
             </div>
           )
@@ -142,24 +164,70 @@ export default function MetodosPagamentoPage() {
             <p className="mt-4 font-semibold text-foreground">Nenhum cartão salvo</p>
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">
               {mpReady
-                ? 'Salvar cartões estará disponível em breve.'
+                ? 'Adicione seu primeiro cartão para agilizar pagamentos e recargas no evento.'
                 : 'Cartões ficarão disponíveis quando o Mercado Pago estiver configurado.'}
             </p>
           </motion.div>
         ) : (
-          <div className="space-y-4">
-            {savedCards.map((card, index) => (
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <div className="payment-card-shell">
-                  <SavedCreditCard card={card} />
-                </div>
-              </motion.div>
-            ))}
+          <div className="space-y-6">
+            {savedCards.map((card, index) => {
+              const isConfirmingDelete = confirmDeleteId === card.id;
+              const isDeleting = deletingId === card.id;
+
+              return (
+                <motion.div
+                  key={card.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="space-y-2"
+                >
+                  <div className="payment-card-shell">
+                    <SavedCreditCard card={card} />
+                  </div>
+                  <div className="flex items-center justify-end gap-2 px-1">
+                    {isConfirmingDelete ? (
+                      <div className="flex items-center gap-2 rounded-xl bg-destructive/10 px-3 py-1.5 text-sm">
+                        <span className="text-xs font-medium text-destructive">
+                          Remover este cartão?
+                        </span>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs rounded-lg font-semibold"
+                          disabled={isDeleting}
+                          onClick={() => void handleDeleteCard(card.id)}
+                        >
+                          {isDeleting ? 'Removendo...' : 'Sim, remover'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs rounded-lg text-muted-foreground hover:bg-background/80"
+                          disabled={isDeleting}
+                          onClick={() => setConfirmDeleteId(null)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                        onClick={() => setConfirmDeleteId(card.id)}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Remover cartão
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </main>
