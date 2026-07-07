@@ -51,9 +51,27 @@ export interface MpBinChangeData {
   bin?: string;
 }
 
+export interface MpCustomFont {
+  src: string;
+}
+
+export interface MpFieldStyle {
+  width?: string;
+  height?: string;
+  fontSize?: string;
+  fontFamily?: string;
+  fontWeight?: string;
+  color?: string;
+  placeholderColor?: string;
+  paddingLeft?: string;
+  paddingRight?: string;
+  textAlign?: string;
+}
+
 export interface MpSecureField {
   mount: (elementId: string) => MpSecureField;
   unmount: () => void;
+  focus?: () => void;
   on: (
     event:
       | "binChange"
@@ -90,14 +108,27 @@ export interface MpInstallmentOption {
 export interface MpFieldsApi {
   create: (
     fieldType: "cardNumber" | "expirationDate" | "securityCode",
-    options?: { placeholder?: string },
+    options?: {
+      placeholder?: string;
+      style?: MpFieldStyle;
+      customFonts?: MpCustomFont[];
+    },
   ) => MpSecureField;
   createCardToken: (options: {
     cardholderName: string;
     identificationType: string;
     identificationNumber: string;
     issuerId?: string;
-  }) => Promise<{ id: string; first_six_digits?: string }>;
+  }) => Promise<MpCardTokenResponse>;
+}
+
+export interface MpCardTokenResponse {
+  id: string;
+  first_six_digits: string;
+  last_four_digits?: string;
+  card_number_length?: number;
+  luhn_validation?: boolean;
+  status?: string;
 }
 
 export interface MercadoPagoInstance {

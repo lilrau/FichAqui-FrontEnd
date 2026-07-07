@@ -26,12 +26,22 @@ import {
 import {
   createMercadoPago,
   loadMercadoPagoSdk,
-  type MpIdentificationType,
+  type MpFieldStyle,
   type MpInstallmentOption,
   type MpIssuer,
   type MpPaymentMethod,
   type MpSecureField,
 } from '@/lib/mercadopago/load-sdk';
+import {
+  detectCardNetwork,
+  getCardNumberLength,
+  type CardNetwork,
+} from '@/lib/card-brand';
+import {
+  buildCardDisplayDigits,
+  createCardNumberLengthTracker,
+  createSimpleLengthTracker,
+} from '@/lib/mercadopago/secure-field-preview';
 import type { CardPaymentType, CardTokenResult } from '@/lib/types/payment';
 import { cn } from '@/lib/utils';
 
@@ -54,7 +64,112 @@ interface MpCardFormProps {
 }
 
 const inputClassName = 'h-11 rounded-xl';
+const mpFieldClassName = cn(
+  inputClassName,
+  'mp-field flex w-full min-w-0 items-center border border-input bg-transparent shadow-xs transition-[color,box-shadow] outline-none dark:bg-input/30',
+  'focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
+  'overflow-hidden p-0 cursor-text'
+);
 const TOKEN_TIMEOUT_MS = 30_000;
+const IDENTIFICATION_TYPE = 'CPF';
+const MP_CARD_FORM_DEBUG = process.env.NODE_ENV === 'development';
+const EXPIRY_DISPLAY_LENGTH = 4;
+
+function getCardDisplayMaxLength(bin: string, mpMax: number): number {
+  const brand = detectCardNetwork(bin.replace(/\D/g, ''));
+  return Math.min(mpMax, getCardNumberLength(brand));
+}
+
+function mpCardFormDebug(message: string, data?: Record<string, unknown>) {
+  if (!MP_CARD_FORM_DEBUG) return;
+  if (data) {
+    console.debug(`[MpCardForm] ${message}`, data);
+  } else {
+    console.debug(`[MpCardForm] ${message}`);
+  }
+}
+
+function resolveCssColor(customProperty: string): string | undefined {
+  const probe = document.createElement('span');
+  probe.style.color = `var(${customProperty})`;
+  probe.style.display = 'none';
+  document.documentElement.appendChild(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color || undefined;
+}
+
+function resolveMpFieldStyle(): {
+  style: MpFieldStyle;
+  customFonts: { src: string }[];
+} {
+  if (typeof window === 'undefined') {
+    return {
+      style: {
+        width: '100%',
+        height: '44px',
+        fontSize: '16px',
+        paddingLeft: '12px',
+        paddingRight: '12px',
+      },
+      customFonts: [],
+    };
+  }
+
+  const probe = document.createElement('input');
+  probe.className = cn(
+    inputClassName,
+    'border border-input bg-transparent px-3 text-base shadow-xs md:text-sm'
+  );
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.pointerEvents = 'none';
+  document.body.appendChild(probe);
+
+  const computed = getComputedStyle(probe);
+  const style: MpFieldStyle = {
+    width: '100%',
+    height: `${probe.offsetHeight}px`,
+    fontSize: computed.fontSize,
+    fontFamily: computed.fontFamily,
+    fontWeight: computed.fontWeight,
+    paddingLeft: computed.paddingLeft,
+    paddingRight: computed.paddingRight,
+    color: resolveCssColor('--foreground'),
+    placeholderColor: resolveCssColor('--muted-foreground'),
+  };
+  probe.remove();
+
+  return {
+    style,
+    customFonts: [
+      {
+        src: 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap',
+      },
+    ],
+  };
+}
+
+function expiryDisplayFromLength(length: number): { month: string; year: string } {
+  if (length <= 0) {
+    return { month: '', year: '' };
+  }
+  if (length <= 2) {
+    return { month: '0'.repeat(length), year: '' };
+  }
+  return { month: '00', year: '0'.repeat(length - 2) };
+}
+
+function focusMpSecureField(
+  mount: HTMLDivElement | null,
+  field?: MpSecureField | null
+) {
+  if (field?.focus) {
+    field.focus();
+    return;
+  }
+  mount?.querySelector('iframe')?.focus();
+}
 
 const CARD_PAYMENT_TYPES = new Set<CardPaymentType>(['credit_card', 'debit_card']);
 
@@ -63,6 +178,50 @@ function normalizeCardPaymentType(value: string | undefined): CardPaymentType {
     return value as CardPaymentType;
   }
   return 'credit_card';
+}
+
+const NETWORK_TO_MP_PAYMENT_METHOD: Partial<Record<CardNetwork, string>> = {
+  visa: 'visa',
+  mastercard: 'master',
+  amex: 'amex',
+  elo: 'elo',
+  hipercard: 'hipercard',
+  diners: 'diners',
+};
+
+/** BINs dos cartões de teste oficiais do Mercado Pago (sandbox). */
+const MP_SANDBOX_BIN_PREFIXES: ReadonlyArray<readonly [string, string]> = [
+  ['5031', 'master'],
+  ['4235', 'visa'],
+  ['3753', 'amex'],
+  ['5067', 'elo'],
+];
+
+function guessMpPaymentMethodId(bin: string): string | null {
+  const digits = bin.replace(/\D/g, '');
+  for (const [prefix, methodId] of MP_SANDBOX_BIN_PREFIXES) {
+    if (digits.startsWith(prefix)) return methodId;
+  }
+  const network = detectCardNetwork(digits);
+  if (!network) return null;
+  return NETWORK_TO_MP_PAYMENT_METHOD[network] ?? null;
+}
+
+async function fetchPaymentMethodId(
+  mp: ReturnType<typeof createMercadoPago>,
+  bin: string
+): Promise<string | null> {
+  try {
+    const { results } = await mp.getPaymentMethods({ bin });
+    const methodId = results[0]?.id;
+    if (methodId) return methodId;
+  } catch (error) {
+    mpCardFormDebug('fetchPaymentMethodId:error', {
+      bin,
+      message: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+  return guessMpPaymentMethodId(bin);
 }
 
 function formatCpf(value: string) {
@@ -104,13 +263,17 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
     const paymentMethodIdRef = useRef('');
     const paymentTypeIdRef = useRef('credit_card');
     const currentBinRef = useRef('');
+    const binResolveGenerationRef = useRef(0);
+    const amountRef = useRef(amount);
+    const cardNumberLengthRef = useRef(0);
+    const cardMaxLengthRef = useRef(16);
+    const expiryLengthRef = useRef(0);
+    const cvvLengthRef = useRef(0);
 
     const [ready, setReady] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [holderCpf, setHolderCpf] = useState('');
     const [holderName, setHolderName] = useState('');
-    const [identificationType, setIdentificationType] = useState('CPF');
-    const [identificationTypes, setIdentificationTypes] = useState<MpIdentificationType[]>([]);
     const [issuers, setIssuers] = useState<MpIssuer[]>([]);
     const [selectedIssuerId, setSelectedIssuerId] = useState('');
     const [issuerRequired, setIssuerRequired] = useState(false);
@@ -119,8 +282,56 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
     const [paymentTypeId, setPaymentTypeId] = useState<CardPaymentType>('credit_card');
     const [cardHighlight, setCardHighlight] = useState<CardHighlightField>(null);
     const [cardFlipped, setCardFlipped] = useState(false);
-    const [displayDigits, setDisplayDigits] = useState('');
-    const [cvv, setCvv] = useState('');
+    const [cardRevealKey, setCardRevealKey] = useState(0);
+    const [committedDigits, setCommittedDigits] = useState('');
+    const [committedExpiryLength, setCommittedExpiryLength] = useState(0);
+    const [committedCvv, setCommittedCvv] = useState('');
+    const [cardMaxLength, setCardMaxLength] = useState(16);
+    const [cvvMaxLength, setCvvMaxLength] = useState(4);
+    const cvvMaxLengthRef = useRef(4);
+
+    const { month: expiryMonth, year: expiryYear } = expiryDisplayFromLength(
+      committedExpiryLength
+    );
+    const cardDisplayMaxLength = getCardDisplayMaxLength(
+      currentBinRef.current,
+      cardMaxLength
+    );
+
+    const resetCardPreview = () => {
+      setCommittedDigits('');
+      setCommittedExpiryLength(0);
+      setCommittedCvv('');
+    };
+
+    const tryRevealCardPreview = () => {
+      const displayMax = getCardDisplayMaxLength(
+        currentBinRef.current,
+        cardMaxLengthRef.current
+      );
+      const numberLength = Math.min(cardNumberLengthRef.current, displayMax);
+      const expiryLength = Math.min(expiryLengthRef.current, EXPIRY_DISPLAY_LENGTH);
+      const cvvLength = Math.min(cvvLengthRef.current, cvvMaxLengthRef.current);
+
+      if (
+        numberLength < displayMax ||
+        expiryLength < EXPIRY_DISPLAY_LENGTH ||
+        cvvLength < cvvMaxLengthRef.current
+      ) {
+        return;
+      }
+
+      setCommittedDigits(
+        buildCardDisplayDigits(currentBinRef.current, numberLength).slice(0, displayMax)
+      );
+      setCommittedExpiryLength(expiryLength);
+      setCommittedCvv('0'.repeat(cvvLength));
+      setCardRevealKey((key) => key + 1);
+    };
+
+    const syncCardNumberLength = (length: number) => {
+      cardNumberLengthRef.current = length;
+    };
 
     const clearIssuerAndInstallments = () => {
       setIssuers([]);
@@ -136,7 +347,11 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
       mp: ReturnType<typeof createMercadoPago>,
       paymentMethod: MpPaymentMethod,
       bin: string
-    ) => {
+    ): Promise<{
+      issuerRequired: boolean;
+      issuers: MpIssuer[];
+      selectedIssuerId: string;
+    }> => {
       const additional = paymentMethod.additional_info_needed ?? [];
       const needsIssuer = additional.includes('issuer_id');
       let issuerOptions: MpIssuer[] = [];
@@ -152,22 +367,27 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
         });
       }
 
+      const nextIssuerId =
+        issuerOptions.length === 1 ? String(issuerOptions[0].id) : '';
+
       setIssuerRequired(needsIssuer);
       setIssuers(issuerOptions);
-      if (issuerOptions.length === 1) {
-        setSelectedIssuerId(String(issuerOptions[0].id));
-      } else {
-        setSelectedIssuerId('');
-      }
+      setSelectedIssuerId(nextIssuerId);
+
+      return {
+        issuerRequired: needsIssuer,
+        issuers: issuerOptions,
+        selectedIssuerId: nextIssuerId,
+      };
     };
 
     const updateInstallments = async (
       mp: ReturnType<typeof createMercadoPago>,
       bin: string,
       paymentTypeId: string
-    ) => {
+    ): Promise<MpInstallmentOption[]> => {
       const installments = await mp.getInstallments({
-        amount,
+        amount: amountRef.current,
         bin,
         paymentTypeId,
       });
@@ -178,6 +398,143 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
           ? 1
           : (options[0]?.installments ?? 1);
       setSelectedInstallments(defaultInstallments);
+      return options;
+    };
+
+    const resolvePaymentMethodFromBin = async (
+      mp: ReturnType<typeof createMercadoPago>,
+      bin: string,
+      cardNumberField: MpSecureField | null,
+      securityField: MpSecureField | null,
+      generation: number
+    ): Promise<{
+      issuerRequired: boolean;
+      issuers: MpIssuer[];
+      selectedIssuerId: string;
+      installmentOptions: MpInstallmentOption[];
+      selectedInstallments: number;
+    } | null> => {
+      mpCardFormDebug('resolvePaymentMethodFromBin:start', { bin, generation });
+
+      const isStale = () => generation !== binResolveGenerationRef.current;
+
+      let paymentMethod: MpPaymentMethod | null = null;
+
+      try {
+        const { results } = await mp.getPaymentMethods({ bin });
+        paymentMethod = results[0] ?? null;
+      } catch (error) {
+        mpCardFormDebug('resolvePaymentMethodFromBin:getPaymentMethods-error', {
+          bin,
+          message: error instanceof Error ? error.message : 'unknown',
+        });
+      }
+
+      if (!paymentMethod) {
+        const guessedId = guessMpPaymentMethodId(bin);
+        if (!guessedId) {
+          if (!isStale()) {
+            paymentMethodIdRef.current = '';
+          }
+          mpCardFormDebug('resolvePaymentMethodFromBin:no-results', { bin });
+          return null;
+        }
+        if (!isStale()) {
+          paymentMethodIdRef.current = guessedId;
+        }
+        mpCardFormDebug('resolvePaymentMethodFromBin:guessed', {
+          bin,
+          paymentMethodId: guessedId,
+        });
+        return {
+          issuerRequired: false,
+          issuers: [],
+          selectedIssuerId: '',
+          installmentOptions: [],
+          selectedInstallments: 1,
+        };
+      }
+
+      if (isStale()) return null;
+
+      paymentMethodIdRef.current = paymentMethod.id;
+      const nextPaymentType = normalizeCardPaymentType(paymentMethod.payment_type_id);
+      paymentTypeIdRef.current = nextPaymentType;
+      setPaymentTypeId(nextPaymentType);
+
+      const settings = paymentMethod.settings?.[0];
+      if (settings?.card_number) {
+        cardNumberField?.update({ settings: settings.card_number });
+        const cardSettings = settings.card_number as {
+          length?: number | { min?: number; max?: number };
+        };
+        const configuredLength =
+          typeof cardSettings.length === 'number'
+            ? cardSettings.length
+            : cardSettings.length?.max;
+        if (configuredLength) {
+          cardMaxLengthRef.current = configuredLength;
+          setCardMaxLength(configuredLength);
+          const displayMax = getCardDisplayMaxLength(bin, configuredLength);
+          if (cardNumberLengthRef.current > displayMax) {
+            syncCardNumberLength(displayMax);
+          }
+        }
+      }
+      if (settings?.security_code) {
+        securityField?.update({ settings: settings.security_code });
+        const codeLength = (settings.security_code as { length?: number }).length;
+        if (codeLength) {
+          cvvMaxLengthRef.current = codeLength;
+          setCvvMaxLength(codeLength);
+        }
+      }
+
+      let issuer = {
+        issuerRequired: false,
+        issuers: [] as MpIssuer[],
+        selectedIssuerId: '',
+      };
+      try {
+        issuer = await updateIssuer(mp, paymentMethod, bin);
+      } catch (error) {
+        mpCardFormDebug('resolvePaymentMethodFromBin:issuer-error', {
+          bin,
+          message: error instanceof Error ? error.message : 'unknown',
+        });
+      }
+
+      if (isStale()) return null;
+
+      let options: MpInstallmentOption[] = [];
+      let installments = 1;
+      if (showInstallments) {
+        try {
+          options = await updateInstallments(mp, bin, paymentTypeIdRef.current);
+          installments =
+            paymentTypeIdRef.current === 'debit_card'
+              ? 1
+              : (options[0]?.installments ?? 1);
+        } catch (error) {
+          mpCardFormDebug('resolvePaymentMethodFromBin:installments-error', {
+            bin,
+            message: error instanceof Error ? error.message : 'unknown',
+          });
+        }
+      }
+
+      if (isStale()) return null;
+
+      mpCardFormDebug('resolvePaymentMethodFromBin:success', {
+        bin,
+        paymentMethodId: paymentMethod.id,
+        paymentTypeId: paymentTypeIdRef.current,
+      });
+      return {
+        ...issuer,
+        installmentOptions: options,
+        selectedInstallments: installments,
+      };
     };
 
     const createToken = async (): Promise<CardTokenResult> => {
@@ -191,14 +548,69 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
       if (holderCpf.replace(/\D/g, '').length !== 11) {
         throw new Error('Informe um CPF válido.');
       }
-      if (!paymentMethodIdRef.current) {
-        throw new Error('Informe um número de cartão válido.');
+
+      let issuerCheck = {
+        issuerRequired,
+        issuers,
+        selectedIssuerId,
+      };
+      let installmentsForToken = selectedInstallments;
+      let installmentOptionsForToken = installmentOptions;
+
+      if (!paymentMethodIdRef.current && currentBinRef.current) {
+        mpCardFormDebug('createToken:payment-method-missing', {
+          bin: currentBinRef.current,
+        });
+        const generation = ++binResolveGenerationRef.current;
+        const resolved = await resolvePaymentMethodFromBin(
+          mpRef.current,
+          currentBinRef.current,
+          cardNumberFieldRef.current,
+          securityFieldRef.current,
+          generation
+        );
+        if (resolved) {
+          issuerCheck = resolved;
+          installmentOptionsForToken = resolved.installmentOptions;
+          installmentsForToken = resolved.selectedInstallments;
+        }
       }
-      if (issuerRequired && issuers.length > 0 && !selectedIssuerId) {
+
+      if (
+        paymentMethodIdRef.current &&
+        issuerCheck.issuerRequired &&
+        issuerCheck.issuers.length > 0 &&
+        !issuerCheck.selectedIssuerId &&
+        !selectedIssuerId
+      ) {
         throw new Error('Selecione o banco emissor.');
       }
-      if (showInstallments && paymentTypeId !== 'debit_card' && installmentOptions.length === 0) {
-        throw new Error('Aguarde o carregamento das parcelas.');
+
+      if (
+        paymentMethodIdRef.current &&
+        showInstallments &&
+        paymentTypeIdRef.current !== 'debit_card'
+      ) {
+        if (installmentOptionsForToken.length === 0 && currentBinRef.current) {
+          try {
+            installmentOptionsForToken = await updateInstallments(
+              mpRef.current,
+              currentBinRef.current,
+              paymentTypeIdRef.current
+            );
+            installmentsForToken = selectedInstallments;
+          } catch {
+            // Parcelas indisponíveis; segue com 1x no token.
+          }
+        }
+        if (
+          installmentOptionsForToken.length === 0 &&
+          installmentOptions.length === 0
+        ) {
+          installmentsForToken = 1;
+        } else if (installmentOptionsForToken.length === 0) {
+          throw new Error('Aguarde o carregamento das parcelas.');
+        }
       }
 
       const tokenOptions: {
@@ -208,13 +620,20 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
         issuerId?: string;
       } = {
         cardholderName: holderName.trim(),
-        identificationType,
+        identificationType: IDENTIFICATION_TYPE,
         identificationNumber: holderCpf.replace(/\D/g, ''),
       };
 
-      if (selectedIssuerId) {
-        tokenOptions.issuerId = selectedIssuerId;
+      const issuerIdForToken = selectedIssuerId || issuerCheck.selectedIssuerId;
+      if (issuerIdForToken) {
+        tokenOptions.issuerId = issuerIdForToken;
       }
+
+      mpCardFormDebug('createToken:tokenize', {
+        paymentMethodId: paymentMethodIdRef.current,
+        bin: currentBinRef.current,
+        issuerId: issuerIdForToken || null,
+      });
 
       const token = await Promise.race([
         mpRef.current.fields.createCardToken(tokenOptions),
@@ -230,14 +649,70 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
         throw new Error('Não foi possível tokenizar o cartão.');
       }
 
+      if (!paymentMethodIdRef.current) {
+        const binForMethod =
+          token.first_six_digits || currentBinRef.current || '';
+        if (binForMethod) {
+          currentBinRef.current = binForMethod;
+          const methodId = await fetchPaymentMethodId(mpRef.current, binForMethod);
+          if (methodId) {
+            paymentMethodIdRef.current = methodId;
+            mpCardFormDebug('createToken:resolved-payment-method', {
+              paymentMethodId: methodId,
+              bin: binForMethod,
+            });
+          }
+        }
+      }
+
+      if (!paymentMethodIdRef.current) {
+        throw new Error('Informe um número de cartão válido.');
+      }
+
+      if (
+        issuerCheck.issuerRequired &&
+        issuerCheck.issuers.length > 0 &&
+        !issuerIdForToken
+      ) {
+        throw new Error('Selecione o banco emissor.');
+      }
+
+      if (showInstallments && paymentTypeIdRef.current !== 'debit_card') {
+        if (installmentOptionsForToken.length === 0 && currentBinRef.current) {
+          try {
+            installmentOptionsForToken = await updateInstallments(
+              mpRef.current,
+              currentBinRef.current,
+              paymentTypeIdRef.current
+            );
+            installmentsForToken = selectedInstallments;
+          } catch {
+            installmentsForToken = 1;
+          }
+        }
+        if (installmentOptionsForToken.length === 0) {
+          installmentsForToken = 1;
+        }
+      }
+
+      mpCardFormDebug('createToken:success', {
+        paymentMethodId: paymentMethodIdRef.current,
+        paymentTypeId: paymentTypeIdRef.current,
+        installments: installmentsForToken,
+      });
+
       return {
         token: token.id,
         paymentMethodId: paymentMethodIdRef.current,
         paymentMethodType: normalizeCardPaymentType(paymentTypeIdRef.current),
         installments:
-          paymentTypeIdRef.current === 'debit_card' ? 1 : selectedInstallments,
+          paymentTypeIdRef.current === 'debit_card' ? 1 : installmentsForToken,
       };
     };
+
+    const cardNumberFieldRef = useRef<MpSecureField | null>(null);
+    const expirationFieldRef = useRef<MpSecureField | null>(null);
+    const securityFieldRef = useRef<MpSecureField | null>(null);
 
     useImperativeHandle(ref, () => ({
       createToken,
@@ -249,14 +724,18 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
     }, [ready, onReadyChange]);
 
     useEffect(() => {
+      amountRef.current = amount;
+    }, [amount]);
+
+    useEffect(() => {
       let cancelled = false;
       let cardNumberField: MpSecureField | null = null;
       let expirationField: MpSecureField | null = null;
       let securityField: MpSecureField | null = null;
-
-      const updateDisplayDigits = (bin: string) => {
-        setDisplayDigits(bin);
-      };
+      let cardLengthTracker: ReturnType<typeof createCardNumberLengthTracker> | null =
+        null;
+      let expiryTracker: ReturnType<typeof createSimpleLengthTracker> | null = null;
+      let cvvTracker: ReturnType<typeof createSimpleLengthTracker> | null = null;
 
       const mountFields = async () => {
         try {
@@ -281,101 +760,158 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
           if (cancelled) return;
           mpRef.current = mp;
 
+          const { style: fieldStyle, customFonts } = resolveMpFieldStyle();
+          const fieldOptions = { style: fieldStyle, customFonts };
+
           cardNumberField = mp.fields.create('cardNumber', {
             placeholder: '0000 0000 0000 0000',
+            ...fieldOptions,
           });
           cardNumberField.mount(cardNumberMountId);
+          cardNumberFieldRef.current = cardNumberField;
 
           expirationField = mp.fields.create('expirationDate', {
             placeholder: 'MM/AA',
+            ...fieldOptions,
           });
           expirationField.mount(expirationMountId);
+          expirationFieldRef.current = expirationField;
 
           securityField = mp.fields.create('securityCode', {
             placeholder: '123',
+            ...fieldOptions,
           });
           securityField.mount(securityMountId);
+          securityFieldRef.current = securityField;
+
+          cardLengthTracker = createCardNumberLengthTracker(
+            () =>
+              getCardDisplayMaxLength(
+                currentBinRef.current,
+                cardMaxLengthRef.current
+              ),
+            syncCardNumberLength
+          );
+          expiryTracker = createSimpleLengthTracker(
+            () => EXPIRY_DISPLAY_LENGTH,
+            () => expiryLengthRef.current,
+            (length) => {
+              expiryLengthRef.current = length;
+            }
+          );
+          cvvTracker = createSimpleLengthTracker(
+            () => cvvMaxLengthRef.current,
+            () => cvvLengthRef.current,
+            (length) => {
+              cvvLengthRef.current = length;
+            }
+          );
 
           cardNumberField.on('focus', () => {
+            resetCardPreview();
             setCardFlipped(false);
             setCardHighlight('number');
           });
-          cardNumberField.on('blur', () => setCardHighlight(null));
+          cardNumberField.on('blur', () => {
+            setCardHighlight(null);
+            tryRevealCardPreview();
+          });
+          cardNumberField.on('change', () => {
+            resetCardPreview();
+            cardLengthTracker?.onChange();
+          });
           cardNumberField.on('binChange', async (data) => {
-            const bin = data.bin ?? '';
-            updateDisplayDigits(bin);
+            if (data.bin == null) {
+              cardLengthTracker?.onBinChange(null);
+              return;
+            }
+
+            const bin = data.bin;
+            const prevBin = currentBinRef.current;
+
+            currentBinRef.current = bin;
+            cardLengthTracker?.onBinChange(bin);
+
+            const brand = detectCardNetwork(bin.replace(/\D/g, ''));
+            if (brand) {
+              const brandLength = getCardNumberLength(brand);
+              cardMaxLengthRef.current = brandLength;
+              setCardMaxLength(brandLength);
+              const displayMax = getCardDisplayMaxLength(bin, brandLength);
+              if (cardNumberLengthRef.current > displayMax) {
+                syncCardNumberLength(displayMax);
+              }
+            }
+
+            mpCardFormDebug('binChange', {
+              bin,
+              currentBin: currentBinRef.current,
+              paymentMethodId: paymentMethodIdRef.current,
+              cardNumberLength: cardNumberLengthRef.current,
+            });
 
             if (!bin) {
               paymentMethodIdRef.current = '';
-              currentBinRef.current = '';
               clearIssuerAndInstallments();
               return;
             }
 
-            if (bin === currentBinRef.current) {
+            if (bin === prevBin && paymentMethodIdRef.current) {
               return;
             }
 
-            currentBinRef.current = bin;
-
-            try {
-              const { results } = await mp.getPaymentMethods({ bin });
-              const paymentMethod = results[0];
-              if (!paymentMethod) return;
-
-              paymentMethodIdRef.current = paymentMethod.id;
-              const nextPaymentType = normalizeCardPaymentType(paymentMethod.payment_type_id);
-              paymentTypeIdRef.current = nextPaymentType;
-              setPaymentTypeId(nextPaymentType);
-
-              const settings = paymentMethod.settings?.[0];
-              if (settings?.card_number) {
-                cardNumberField?.update({ settings: settings.card_number });
-              }
-              if (settings?.security_code) {
-                securityField?.update({ settings: settings.security_code });
-              }
-
-              await updateIssuer(mp, paymentMethod, bin);
-              if (showInstallments) {
-                await updateInstallments(mp, bin, paymentTypeIdRef.current);
-              }
-            } catch {
-              paymentMethodIdRef.current = '';
-              clearIssuerAndInstallments();
-            }
+            const generation = ++binResolveGenerationRef.current;
+            await resolvePaymentMethodFromBin(
+              mp,
+              bin,
+              cardNumberField,
+              securityField,
+              generation
+            );
           });
 
           expirationField.on('focus', () => {
+            resetCardPreview();
             setCardFlipped(false);
             setCardHighlight('expire');
           });
-          expirationField.on('blur', () => setCardHighlight(null));
+          expirationField.on('blur', () => {
+            setCardHighlight(null);
+            tryRevealCardPreview();
+          });
+          expirationField.on('change', () => {
+            resetCardPreview();
+            expiryTracker?.onChange();
+          });
 
           securityField.on('focus', () => {
+            resetCardPreview();
             setCardFlipped(true);
             setCardHighlight('cvv');
           });
           securityField.on('blur', () => {
             setCardFlipped(false);
             setCardHighlight(null);
+            tryRevealCardPreview();
           });
-          securityField.on('change', (data) => {
-            const length = data.fieldLength ?? 0;
-            setCvv(length > 0 ? '*'.repeat(length) : '');
+          securityField.on('change', () => {
+            resetCardPreview();
+            cvvTracker?.onChange();
           });
 
-          const types = await mp.getIdentificationTypes();
-          if (cancelled) return;
-          setIdentificationTypes(types);
-          const defaultType = types.find((type) => type.id === 'CPF') ?? types[0];
-          if (defaultType) {
-            setIdentificationType(defaultType.id);
-          }
           setReady(true);
+          mpCardFormDebug('mount:ready', {
+            cardNumberMountId,
+            expirationMountId,
+            securityMountId,
+            cardBrand: detectCardNetwork(currentBinRef.current),
+          });
         } catch (err) {
           if (!cancelled) {
             setReady(false);
+            mpCardFormDebug('mount:error', {
+              message: err instanceof Error ? err.message : 'unknown',
+            });
             onError?.(
               err instanceof Error
                 ? err.message
@@ -389,16 +925,28 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
 
       return () => {
         cancelled = true;
+        cardLengthTracker?.reset();
+        expiryTracker?.reset();
+        cvvTracker?.reset();
         cardNumberField?.unmount();
         expirationField?.unmount();
         securityField?.unmount();
+        cardNumberFieldRef.current = null;
+        expirationFieldRef.current = null;
+        securityFieldRef.current = null;
         mpRef.current = null;
         currentBinRef.current = '';
+        cardNumberLengthRef.current = 0;
+        expiryLengthRef.current = 0;
+        cvvLengthRef.current = 0;
+        setCommittedDigits('');
+        setCommittedExpiryLength(0);
+        setCommittedCvv('');
+        setCardRevealKey(0);
         setReady(false);
       };
     }, [
       publicKey,
-      amount,
       showInstallments,
       cardNumberMountId,
       expirationMountId,
@@ -439,15 +987,21 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
         onSubmit={(event) => void handleSubmit(event)}
         className={cn('space-y-5', className)}
       >
-        <InteractiveCreditCard
-          numberDigits={displayDigits}
-          holderName={holderName}
-          expiryMonth=""
-          expiryYear=""
-          cvv={cvv}
-          highlight={cardHighlight}
-          flipped={cardFlipped}
-        />
+        <div className="payment-card-shell">
+          <InteractiveCreditCard
+            numberDigits={committedDigits}
+            numberMaxLength={cardDisplayMaxLength}
+            holderName={holderName}
+            expiryMonth={expiryMonth}
+            expiryYear={expiryYear}
+            cvv={committedCvv}
+            cvvMaxLength={cvvMaxLength}
+            highlight={cardHighlight}
+            flipped={cardFlipped}
+            secureFieldPreview="deferred"
+            revealKey={cardRevealKey}
+          />
+        </div>
 
         <div className="space-y-4">
           <div className="space-y-2">
@@ -464,11 +1018,18 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={cardNumberMountId}>Número do cartão</Label>
+            <Label id={`${uid}-card-number-label`}>Número do cartão</Label>
             <div
               id={cardNumberMountId}
               ref={cardNumberMountRef}
-              className="mp-field"
+              role="group"
+              aria-labelledby={`${uid}-card-number-label`}
+              className={cn(mpFieldClassName, disabled && 'pointer-events-none opacity-50')}
+              onMouseDown={(event) => {
+                if (disabled) return;
+                event.preventDefault();
+                focusMpSecureField(event.currentTarget, cardNumberFieldRef.current);
+              }}
             />
           </div>
 
@@ -484,7 +1045,7 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
               }}
               onBlur={() => setCardHighlight(null)}
               onChange={(event) => {
-                setHolderName(event.target.value.replace(/[^a-zA-ZÀ-ÿ\s]/g, ''));
+                setHolderName(event.target.value.replace(/[^a-zA-ZÀ-ÿ\s'-]/g, ''));
               }}
               className={inputClassName}
               disabled={disabled}
@@ -493,44 +1054,36 @@ export const MpCardForm = forwardRef<MpCardFormHandle, MpCardFormProps>(
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor={expirationMountId}>Validade</Label>
+              <Label id={`${uid}-expiry-label`}>Validade</Label>
               <div
                 id={expirationMountId}
                 ref={expirationMountRef}
-                className="mp-field"
+                role="group"
+                aria-labelledby={`${uid}-expiry-label`}
+                className={cn(mpFieldClassName, disabled && 'pointer-events-none opacity-50')}
+                onMouseDown={(event) => {
+                  if (disabled) return;
+                  event.preventDefault();
+                  focusMpSecureField(event.currentTarget, expirationFieldRef.current);
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={securityMountId}>CVV</Label>
+              <Label id={`${uid}-cvv-label`}>CVV</Label>
               <div
                 id={securityMountId}
                 ref={securityMountRef}
-                className="mp-field"
+                role="group"
+                aria-labelledby={`${uid}-cvv-label`}
+                className={cn(mpFieldClassName, disabled && 'pointer-events-none opacity-50')}
+                onMouseDown={(event) => {
+                  if (disabled) return;
+                  event.preventDefault();
+                  focusMpSecureField(event.currentTarget, securityFieldRef.current);
+                }}
               />
             </div>
           </div>
-
-          {identificationTypes.length > 1 && (
-            <div className="space-y-2">
-              <Label htmlFor={`${uid}-doc-type`}>Tipo de documento</Label>
-              <Select
-                value={identificationType}
-                onValueChange={setIdentificationType}
-                disabled={disabled}
-              >
-                <SelectTrigger id={`${uid}-doc-type`} className={`${inputClassName} w-full`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {identificationTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           {issuers.length > 0 && (
             <div className="space-y-2">

@@ -8,8 +8,12 @@ import {
   getCardNumberGroups,
   getCardNumberLength,
 } from '@/lib/card-brand';
+import { getCardDisplayChar } from '@/lib/mercadopago/secure-field-preview';
 
 export type CardHighlightField = 'number' | 'holder' | 'expire' | 'cvv' | null;
+export type SecureFieldPreviewMode = 'live' | 'deferred';
+
+const REVEAL_DIGIT_MS = 70;
 
 type DigitSlot = {
   bottom: string;
@@ -18,12 +22,6 @@ type DigitSlot = {
 
 function buildEmptySlots(length: number): DigitSlot[] {
   return Array.from({ length }, () => ({ bottom: '', filed: false }));
-}
-
-function getMaskedChar(index: number, digit: string, maxLen: number): string {
-  const position = index + 1;
-  if (maxLen === 16 && position > 4 && position < 13) return '*';
-  return digit;
 }
 
 function buildSlotsFromDigits(
@@ -44,9 +42,10 @@ function buildSlotsFromDigits(
 function useAnimatedDigitSlots(
   rawDigits: string,
   maxLen: number,
-  mapChar: (index: number, digit: string) => string = (_, d) => d
+  mapChar: (index: number, digit: string) => string = (_, d) => d,
+  sanitize: (value: string) => string = (value) => value.replace(/\D/g, '')
 ): DigitSlot[] {
-  const normalized = rawDigits.replace(/\D/g, '').slice(0, maxLen);
+  const normalized = sanitize(rawDigits).slice(0, maxLen);
   const [slots, setSlots] = useState<DigitSlot[]>(() => buildEmptySlots(maxLen));
   const prevLenRef = useRef(0);
   const prevNormalizedRef = useRef('');
@@ -83,14 +82,28 @@ function useAnimatedDigitSlots(
       return;
     }
 
-    if (delta === 0 || Math.abs(delta) > 1) {
-      setSlots(buildSlotsFromDigits(normalized, maxLen, map));
+    if (delta === 0) {
+      setSlots((current) => {
+        const next = current.map((slot, index) => {
+          if (index >= normalized.length) {
+            return { bottom: '', filed: false };
+          }
+          const bottom = map(index, normalized[index]);
+          if (slot.bottom === bottom && slot.filed) {
+            return slot;
+          }
+          return { bottom, filed: true };
+        });
+        return next;
+      });
     } else if (delta === -1) {
       setSlots((current) => {
         const next = current.map((slot) => ({ ...slot }));
         next[len] = { bottom: '', filed: false };
         return next;
       });
+    } else if (Math.abs(delta) > 1) {
+      setSlots(buildSlotsFromDigits(normalized, maxLen, map));
     } else {
       setSlots((current) => {
         const next = current.map((slot) => ({ ...slot }));
@@ -109,6 +122,77 @@ function useAnimatedDigitSlots(
   return slots.length === maxLen
     ? slots
     : buildSlotsFromDigits(normalized, maxLen, mapChar);
+}
+
+function useAnimatedCharSlots(text: string): DigitSlot[] {
+  const len = text.length;
+  return useAnimatedDigitSlots(text, len, (_, char) => char, (value) => value);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function useDeferredFieldReveal(
+  targets: { number: number; expiry: number; cvv: number },
+  revealKey: number,
+  enabled: boolean
+): { number: number; expiry: number; cvv: number } {
+  const [visible, setVisible] = useState({ number: 0, expiry: 0, cvv: 0 });
+
+  useEffect(() => {
+    if (!enabled || revealKey === 0) {
+      setVisible({ number: 0, expiry: 0, cvv: 0 });
+      return;
+    }
+
+    let cancelled = false;
+    setVisible({ number: 0, expiry: 0, cvv: 0 });
+
+    const run = async () => {
+      for (let index = 1; index <= targets.number; index++) {
+        if (cancelled) return;
+        await delay(REVEAL_DIGIT_MS);
+        setVisible((current) => ({ ...current, number: index }));
+      }
+      for (let index = 1; index <= targets.expiry; index++) {
+        if (cancelled) return;
+        await delay(REVEAL_DIGIT_MS);
+        setVisible((current) => ({ ...current, expiry: index }));
+      }
+      for (let index = 1; index <= targets.cvv; index++) {
+        if (cancelled) return;
+        await delay(REVEAL_DIGIT_MS);
+        setVisible((current) => ({ ...current, cvv: index }));
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    enabled,
+    revealKey,
+    targets.cvv,
+    targets.expiry,
+    targets.number,
+  ]);
+
+  return visible;
+}
+
+function expiryFromVisibleLength(length: number): { month: string; year: string } {
+  if (length <= 0) {
+    return { month: '', year: '' };
+  }
+  if (length <= 2) {
+    return { month: '0'.repeat(length), year: '' };
+  }
+  return { month: '00', year: '0'.repeat(length - 2) };
 }
 
 function AnimatedDigit({
@@ -134,51 +218,95 @@ function AnimatedDigit({
 
 export interface InteractiveCreditCardProps {
   numberDigits: string;
+  numberMaxLength?: number;
   holderName: string;
   expiryMonth: string;
   expiryYear: string;
   cvv: string;
+  cvvMaxLength?: number;
   highlight: CardHighlightField;
   flipped?: boolean;
+  /** MP secure fields: defer card preview until revealKey triggers progressive animation. */
+  secureFieldPreview?: SecureFieldPreviewMode;
+  revealKey?: number;
 }
 
 export function InteractiveCreditCard({
   numberDigits,
+  numberMaxLength,
   holderName,
   expiryMonth,
   expiryYear,
   cvv,
+  cvvMaxLength = 4,
   highlight,
   flipped = false,
+  secureFieldPreview = 'live',
+  revealKey = 0,
 }: InteractiveCreditCardProps) {
-  const brand = useMemo(
-    () => detectCardNetwork(numberDigits),
-    [numberDigits]
+  const deferred = secureFieldPreview === 'deferred';
+  const targetNumberLength = numberDigits.slice(0, numberMaxLength ?? 16).length;
+  const targetExpiryLength = Math.min(
+    4,
+    expiryMonth.replace(/\D/g, '').length + expiryYear.replace(/\D/g, '').length
+  );
+  const targetCvvLength = Math.min(
+    cvvMaxLength,
+    cvv.replace(/\D/g, '').length
   );
 
-  const maxLen = getCardNumberLength(brand);
+  const revealed = useDeferredFieldReveal(
+    {
+      number: targetNumberLength,
+      expiry: targetExpiryLength,
+      cvv: targetCvvLength,
+    },
+    revealKey,
+    deferred
+  );
+
+  const visibleNumberLength = deferred ? revealed.number : targetNumberLength;
+  const visibleExpiryLength = deferred ? revealed.expiry : targetExpiryLength;
+  const visibleCvvLength = deferred ? revealed.cvv : targetCvvLength;
+
+  const digitsOnly = useMemo(
+    () => numberDigits.replace(/[^\d·x]/g, '').replace(/[·x]/g, ''),
+    [numberDigits]
+  );
+  const brand = useMemo(() => detectCardNetwork(digitsOnly), [digitsOnly]);
+
+  const maxLen = numberMaxLength ?? getCardNumberLength(brand);
   const groups = getCardNumberGroups(brand);
-  const normalizedDigits = numberDigits.replace(/\D/g, '').slice(0, maxLen);
+  const normalizedDigits = numberDigits.slice(0, visibleNumberLength);
+  const filledLength = normalizedDigits.length;
 
   const mapCardChar = useMemo(
     () => (index: number, digit: string) =>
-      getMaskedChar(index, digit, maxLen),
-    [maxLen]
+      getCardDisplayChar(index, digit, maxLen, filledLength),
+    [filledLength, maxLen]
   );
 
   const cardSlots = useAnimatedDigitSlots(
     normalizedDigits,
     maxLen,
-    mapCardChar
+    mapCardChar,
+    (value) => value.slice(0, maxLen)
   );
 
-  const monthDigits = expiryMonth.replace(/\D/g, '').slice(0, 2);
-  const yearDigits = expiryYear.replace(/\D/g, '').slice(-2);
+  const { month: visibleExpiryMonth, year: visibleExpiryYear } =
+    expiryFromVisibleLength(visibleExpiryLength);
+  const monthDigits = visibleExpiryMonth.replace(/\D/g, '').slice(0, 2);
+  const yearDigits = visibleExpiryYear.replace(/\D/g, '').slice(-2);
   const monthSlots = useAnimatedDigitSlots(monthDigits, 2);
   const yearSlots = useAnimatedDigitSlots(yearDigits, 2);
 
-  const displayHolder = holderName.trim() || 'Nome no cartão';
-  const cvvMask = cvv ? '*'.repeat(cvv.length) : '';
+  const holderChars = holderName.trim().toLocaleUpperCase('pt-BR');
+  const holderSlots = useAnimatedCharSlots(holderChars);
+  const cvvSlots = useAnimatedDigitSlots(
+    cvv.replace(/\D/g, '').slice(0, visibleCvvLength),
+    cvvMaxLength,
+    () => '•'
+  );
 
   return (
     <section
@@ -225,7 +353,15 @@ export function InteractiveCreditCard({
             {highlight === 'holder' && <div className="payment-card__highlight" />}
             <div className="payment-card__holder">
               <div className="payment-card__section-title">Titular</div>
-              <div className="payment-card__holder-name">{displayHolder}</div>
+              <div className="payment-card__holder-name">
+                {holderChars ? (
+                  holderSlots.map((slot, index) => (
+                    <AnimatedDigit key={index} slot={slot} placeholder=" " />
+                  ))
+                ) : (
+                  <span className="payment-card__holder-placeholder">Nome no cartão</span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -251,7 +387,11 @@ export function InteractiveCreditCard({
           {highlight === 'cvv' && <div className="payment-card__highlight" />}
           <div className="payment-card__cvv">
             <span>CVV</span>
-            <div className="payment-card__cvv-field">{cvvMask}</div>
+            <div className="payment-card__cvv-field">
+              {cvvSlots.map((slot, index) => (
+                <AnimatedDigit key={index} slot={slot} placeholder="#" />
+              ))}
+            </div>
           </div>
         </div>
       </section>

@@ -175,10 +175,20 @@
 }
 
 .payment-card__holder-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: clamp(13px, 3.5vw, 15px);
+}
+
+.payment-card__holder-name .payment-card__digit {
+  --digit-h: 1.1em;
+  flex: 0 0 auto;
+}
+
+.payment-card__holder-placeholder {
+  opacity: 0.6;
 }
 
 .payment-card__section-title {
@@ -263,11 +273,16 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 0.05em;
   padding: 0 12px;
   font-size: 22px;
   line-height: 1;
   letter-spacing: 0.15em;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.payment-card__cvv-field .payment-card__digit {
+  --digit-h: 1em;
 }
 
 .payment-card-shell {
@@ -296,29 +311,11 @@
   gap: 0.15em;
 }
 
-.mp-field {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 2.75rem;
-  height: 2.75rem;
-  border-radius: 0.75rem;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  padding: 0 0.75rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  overflow: hidden;
-}
-
-.mp-field:focus-within {
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.5);
-}
-
 .mp-field iframe {
   display: block;
   width: 100% !important;
-  height: 1.5rem !important;
-  min-height: 1.5rem;
+  height: 2.75rem !important;
+  min-height: 2.75rem !important;
   border: 0;
+  pointer-events: auto;
 }

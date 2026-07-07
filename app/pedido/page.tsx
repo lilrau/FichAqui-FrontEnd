@@ -643,6 +643,7 @@ function PedidoContent() {
                               ref={mpFormRef}
                               publicKey={paymentsConfig.publicKey}
                               amount={total.toFixed(2)}
+                              showInstallments={false}
                               onReadyChange={setMpFormReady}
                               onError={setPaymentError}
                             />
