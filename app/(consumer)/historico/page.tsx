@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useConsumerEventId } from '@/lib/consumer-scope';
@@ -135,13 +135,35 @@ export default function HistoricoPage() {
                     </button>
                   )}
 
-                  {isExpanded && (
-                    <div className="mt-4 space-y-3">
-                      {fichas.map((ficha) => (
-                        <FichaCard key={ficha.id} ficha={ficha} compact />
-                      ))}
-                    </div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        key={`fichas-${order.id}`}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-4 space-y-3">
+                          {fichas.map((ficha, fichaIndex) => (
+                            <motion.div
+                              key={ficha.id}
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{
+                                delay: fichaIndex * 0.05,
+                                duration: 0.22,
+                                ease: [0.4, 0, 0.2, 1],
+                              }}
+                            >
+                              <FichaCard ficha={ficha} compact />
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               );
             })}
