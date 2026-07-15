@@ -100,7 +100,7 @@ export function LoginForm({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => fillDemo('maria@email.com')}
+              onClick={() => fillDemo('maria@testuser.com')}
               className="rounded-lg bg-background px-2 py-1 border border-border"
             >
               Consumidor
@@ -121,6 +121,7 @@ export function LoginForm({
             </button>
           </div>
           <p>Senha: 123456</p>
+          <p>Consumidor usa @testuser.com (obrigatório para Mercado Pago sandbox).</p>
         </div>
       )}
     </form>
