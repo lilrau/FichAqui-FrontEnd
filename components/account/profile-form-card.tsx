@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { updateProfileApi } from '@/lib/api/profile';
 import { getErrorMessage } from '@/lib/api/errors';
 import { formatPhone } from '@/lib/format/phone';
+import { formatIsoDateBr } from '@/lib/format/date';
 import { cn } from '@/lib/utils';
 
 type EditableProfile = {
@@ -109,7 +110,7 @@ export function ProfileFormCard({
         <Label htmlFor={`${idPrefix}-birth-date`}>Data de nascimento</Label>
         <Input
           id={`${idPrefix}-birth-date`}
-          value={user?.birthDate ?? '—'}
+          value={formatIsoDateBr(user?.birthDate)}
           readOnly
           tabIndex={-1}
           aria-readonly

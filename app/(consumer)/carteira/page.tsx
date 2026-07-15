@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
-import { Wallet, Plus } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Wallet, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConsumerLoading } from '@/components/consumer-loading';
 import type { Ficha } from '@/lib/types/event-domain';
@@ -13,6 +13,9 @@ import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
 import { FichaCard } from '@/components/ficha-card';
 import { useConsumerEventId } from '@/lib/consumer-scope';
 import { useUserOrders } from '@/lib/user-orders-context';
+import { fetchWalletTransactions } from '@/lib/api/wallet';
+import { getErrorMessage } from '@/lib/api/errors';
+import type { WalletTransaction } from '@/lib/types/wallet';
 import { cn } from '@/lib/utils';
 
 const tabs = [
@@ -37,13 +40,126 @@ const slideVariants = {
   }),
 };
 
-function TransactionsList() {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <p className="font-semibold text-foreground">Nenhuma movimentação</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        O histórico da carteira aparecerá aqui quando a API estiver disponível.
+function formatRelativeTime(isoDate: string): string {
+  const minutes = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000 / 60);
+  if (minutes < 1) return 'agora';
+  if (minutes < 60) return `${minutes} min atrás`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h atrás`;
+  const days = Math.floor(hours / 24);
+  return `${days}d atrás`;
+}
+
+function TransactionsList({ refreshKey }: { refreshKey: number }) {
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    fetchWalletTransactions()
+      .then((data) => {
+        if (!cancelled) {
+          setTransactions(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getErrorMessage(err, 'Não foi possível carregar as movimentações.'));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        {error}
       </p>
+    );
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <p className="font-semibold text-foreground">Nenhuma movimentação</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Recargas e compras com saldo aparecerão aqui
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {transactions.map((transaction, index) => {
+        const isCredit = transaction.direction === 'credit';
+        const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
+
+        return (
+          <motion.div
+            key={transaction.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="rounded-2xl bg-card p-4 shadow-md border border-border"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className={cn(
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                    isCredit ? 'bg-emerald-500/10' : 'bg-rose-500/10'
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      'h-5 w-5',
+                      isCredit ? 'text-emerald-600' : 'text-rose-600'
+                    )}
+                  />
+                </div>
+                <div className="min-w-0 text-left">
+                  <p className="truncate font-semibold text-foreground">
+                    {transaction.description}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatRelativeTime(transaction.createdAt)}
+                  </p>
+                </div>
+              </div>
+              <span
+                className={cn(
+                  'shrink-0 text-sm font-bold',
+                  isCredit ? 'text-emerald-600' : 'text-rose-600'
+                )}
+              >
+                {isCredit ? '+' : '-'}R$ {transaction.amount.toFixed(2)}
+              </span>
+            </div>
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
@@ -88,6 +204,7 @@ function CarteiraContent() {
   const { balance, loadError, refreshWallet } = useWallet();
   const { config: paymentsConfig } = usePaymentsConfig();
   const [topUpOpen, setTopUpOpen] = useState(false);
+  const [transactionsRefreshKey, setTransactionsRefreshKey] = useState(0);
   const consumerEventId = useConsumerEventId();
   const { getAvailableFichasForEvent } = useUserOrders();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
@@ -144,7 +261,10 @@ function CarteiraContent() {
         <WalletTopUpDialog
           open={topUpOpen}
           onClose={() => setTopUpOpen(false)}
-          onSuccess={() => void refreshWallet()}
+          onSuccess={() => {
+            void refreshWallet();
+            setTransactionsRefreshKey((key) => key + 1);
+          }}
         />
 
         <div className="space-y-4">
@@ -183,7 +303,7 @@ function CarteiraContent() {
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
                 {activeTab === 'movimentacoes' ? (
-                  <TransactionsList />
+                  <TransactionsList refreshKey={transactionsRefreshKey} />
                 ) : (
                   <FichasList fichas={availableFichas} />
                 )}

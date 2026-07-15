@@ -16,3 +16,20 @@ export interface WalletData {
   balance: number;
   savedCards: SavedPaymentCard[];
 }
+
+export type WalletTransactionDirection = 'credit' | 'debit';
+
+export type WalletTransactionType = 'recarga' | 'compra';
+
+export type WalletTransactionOriginType = 'recarga' | 'pedido' | 'manual';
+
+export interface WalletTransaction {
+  id: string;
+  description: string;
+  direction: WalletTransactionDirection;
+  amount: number;
+  createdAt: string;
+  type: WalletTransactionType;
+  originType: WalletTransactionOriginType;
+  originId: string;
+}

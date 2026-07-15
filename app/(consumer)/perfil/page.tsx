@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
   User,
-  Shield,
   ChevronRight,
   KeyRound,
   CreditCard,
@@ -75,25 +74,6 @@ export default function PerfilPage() {
             <div className="flex items-center gap-3">
               <CreditCard className="h-5 w-5 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">Métodos de pagamento</span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-2xl bg-card border border-border overflow-hidden"
-        >
-          <button
-            type="button"
-            onClick={() => router.push('/admin')}
-            className="flex w-full items-center justify-between px-4 py-4 text-left"
-          >
-            <div className="flex items-center gap-3">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">Área administrativa</span>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
