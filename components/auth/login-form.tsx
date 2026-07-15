@@ -100,7 +100,7 @@ export function LoginForm({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => fillDemo('maria@testuser.com')}
+              onClick={() => fillDemo('test_user_5207637493757128652@testuser.com')}
               className="rounded-lg bg-background px-2 py-1 border border-border"
             >
               Consumidor
