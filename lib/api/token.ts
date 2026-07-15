@@ -1,4 +1,4 @@
-const TOKEN_KEY = 'event-app:auth-token';
+const TOKEN_KEY = 'fichaqui-frontend:auth-token';
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;

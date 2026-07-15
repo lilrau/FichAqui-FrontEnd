@@ -1,4 +1,4 @@
-# Event App
+# FichAqui Frontend
 
 App de pedidos para festas juninas e eventos similares. Consumidores compram itens de barracas; cada compra gera fichas para retirada no local.
 

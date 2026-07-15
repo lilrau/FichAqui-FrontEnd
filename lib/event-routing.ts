@@ -1,5 +1,5 @@
 export const DEFAULT_EVENT_ID = '1';
-export const ACTIVE_EVENT_KEY = 'event-app:active-event';
+export const ACTIVE_EVENT_KEY = 'fichaqui-frontend:active-event';
 
 const ADMIN_RESERVED_SEGMENTS = new Set(['novo', 'config']);
 
