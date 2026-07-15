@@ -21,7 +21,7 @@ import { useActiveEvent } from '@/lib/event-context';
 import { useEventStore } from '@/lib/event-store';
 import { cityLabel } from '@/lib/types/city';
 import { formatEventDate, formatEventTimeRange } from '@/lib/event-routing';
-import { isImageUrl } from '@/lib/catalog/product-images';
+import { EventAvatar } from '@/components/event-avatar';
 import { cn } from '@/lib/utils';
 import type { Event } from '@/lib/types/event-domain';
 
@@ -212,11 +212,7 @@ export default function HomePage() {
                           className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl text-2xl"
                           style={{ backgroundColor: `${event.primaryColor}18` }}
                         >
-                          {event.icon && isImageUrl(event.icon) ? (
-                            <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
-                          ) : (
-                            event.icon ?? '🎪'
-                          )}
+                          <EventAvatar event={event} emojiClassName="text-2xl" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">

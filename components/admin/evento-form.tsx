@@ -6,7 +6,6 @@ import {
   Calendar,
   Clock,
   MapPin,
-  Image,
   Users,
   Eye,
   Save,
@@ -17,7 +16,9 @@ import { useCity } from '@/lib/city-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { isImageUrl } from '@/lib/catalog/product-images';
+import { EventImageUpload } from '@/components/admin/event-image-upload';
+import { EventAvatar } from '@/components/event-avatar';
+import { getEventImage } from '@/lib/event-image';
 import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
 import {
   EventAddressField,
@@ -25,9 +26,10 @@ import {
 } from '@/components/admin/event-location-fields';
 import { getErrorMessage } from '@/lib/api/errors';
 import { resolveEventAddress } from '@/lib/google-maps/resolve-event-address';
+import type { Event as FichaquiEvent } from '@/lib/types/event-domain';
 
 export function EventoForm({ eventId }: { eventId: string }) {
-  const { getEventById, updateEvent } = useEventStore();
+  const { getEventById, updateEvent, replaceEvent } = useEventStore();
   const { cities } = useCity();
   const stored = getEventById(eventId);
   const [event, setEvent] = useState(stored);
@@ -46,7 +48,10 @@ export function EventoForm({ eventId }: { eventId: string }) {
     setSaveError(null);
 
     try {
-      let payload = event;
+      const { banner: _banner, icon: _icon, ...fields } = event;
+      void _banner;
+      void _icon;
+      let payload: Partial<Omit<FichaquiEvent, 'banner' | 'icon'>> = fields;
 
       if (event.date && !hasResolvedEventAddress(event)) {
         const resolved = await resolveEventAddress(event, cities);
@@ -54,8 +59,8 @@ export function EventoForm({ eventId }: { eventId: string }) {
           setSaveError(resolved.message);
           return;
         }
-        payload = { ...event, ...resolved.value };
-        setEvent(payload);
+        payload = { ...payload, ...resolved.value };
+        setEvent({ ...event, ...resolved.value });
       }
 
       await updateEvent(eventId, payload);
@@ -77,6 +82,8 @@ export function EventoForm({ eventId }: { eventId: string }) {
     { value: 'finished', label: 'Finalizado', color: 'bg-gray-400' },
   ];
 
+  const eventImage = getEventImage(event);
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <AdminSubpageHeader
@@ -89,7 +96,7 @@ export function EventoForm({ eventId }: { eventId: string }) {
             className="flex items-center gap-1 text-sm text-primary font-medium"
           >
             <Eye className="h-4 w-4" />
-            Preview
+            Visualizar
           </button>
         }
       />
@@ -103,11 +110,11 @@ export function EventoForm({ eventId }: { eventId: string }) {
             exit={{ opacity: 0, height: 0 }}
             className="rounded-2xl overflow-hidden bg-card shadow-lg border border-border"
           >
-            <div className="relative h-32 bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center overflow-hidden">
-              {event.icon && isImageUrl(event.icon) ? (
-                <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
+            <div className="relative h-32 overflow-hidden bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+              {eventImage ? (
+                <img src={eventImage} alt={event.name} className="h-full w-full object-cover" />
               ) : (
-                <span className="text-5xl">{event.icon ?? '🎪'}</span>
+                <EventAvatar event={event} emojiClassName="text-5xl" />
               )}
             </div>
             <div className="p-4">
@@ -130,16 +137,13 @@ export function EventoForm({ eventId }: { eventId: string }) {
 
         {/* Form */}
         <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-foreground">Ícone (emoji)</label>
-            <Input
-              value={event.icon ?? ''}
-              onChange={(e) => setEvent({ ...event, icon: e.target.value })}
-              className="mt-2 h-14 rounded-xl text-2xl"
-              placeholder="🎪"
-              maxLength={4}
-            />
-          </div>
+          <EventImageUpload
+            event={event}
+            onUpdated={(updated) => {
+              setEvent(updated);
+              replaceEvent(updated);
+            }}
+          />
 
           {/* Nome */}
           <div>
@@ -261,23 +265,6 @@ export function EventoForm({ eventId }: { eventId: string }) {
                   <span className="font-medium text-foreground">{status.label}</span>
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Banner Upload (mock) */}
-          <div>
-            <label className="text-sm font-medium text-foreground flex items-center gap-2">
-              <Image className="h-4 w-4 text-primary" />
-              Banner do Evento
-            </label>
-            <div className="mt-2 border-2 border-dashed border-border rounded-xl p-8 text-center bg-secondary/30">
-              <div className="flex flex-col items-center">
-                <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
-                  <Image className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="mt-3 font-medium text-foreground">Arraste uma imagem ou clique aqui</p>
-                <p className="mt-1 text-sm text-muted-foreground">PNG, JPG até 5MB</p>
-              </div>
             </div>
           </div>
         </div>

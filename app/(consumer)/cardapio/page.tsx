@@ -20,7 +20,7 @@ import { useAuth } from '@/lib/auth-context';
 import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
 import { useUserOrders } from '@/lib/user-orders-context';
 import { useConsumerEventId } from '@/lib/consumer-scope';
-import { isImageUrl } from '@/lib/catalog/product-images';
+import { EventAvatar } from '@/components/event-avatar';
 import { cn } from '@/lib/utils';
 
 function CardapioContent() {
@@ -67,11 +67,7 @@ function CardapioContent() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-primary flex items-center justify-center text-xl">
-                {activeEvent?.icon && isImageUrl(activeEvent.icon) ? (
-                  <img src={activeEvent.icon} alt={activeEvent.name} className="h-full w-full object-cover" />
-                ) : (
-                  activeEvent?.icon ?? '🎪'
-                )}
+                <EventAvatar event={activeEvent ?? { name: 'Cardápio' }} emojiClassName="text-xl" />
               </div>
               <div className="min-w-0">
                 <h1 className="font-bold text-foreground truncate">{activeEvent?.name ?? 'Cardápio'}</h1>

@@ -11,7 +11,7 @@ import {
 } from '@/lib/event-routing';
 import { useEventStore } from '@/lib/event-store';
 import { useAppReady } from '@/lib/event-context';
-import { isImageUrl } from '@/lib/catalog/product-images';
+import { EventAvatar } from '@/components/event-avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,11 +76,7 @@ export default function AdminEventLayout({
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-primary-foreground/20 flex items-center justify-center text-xl">
-                {event.icon && isImageUrl(event.icon) ? (
-                  <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
-                ) : (
-                  event.icon ?? '🎪'
-                )}
+                <EventAvatar event={event} emojiClassName="text-xl" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm opacity-80 truncate">Painel Administrativo</p>
