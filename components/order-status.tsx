@@ -2,8 +2,9 @@
 
 import { motion } from 'framer-motion';
 import type { Order } from '@/lib/types/event-domain';
+import { isFichaValid } from '@/lib/types/event-domain';
 import { statusConfig } from '@/lib/order-status-config';
-import { FichaQrCode } from '@/components/ficha-qr-code';
+import { FichaCard } from '@/components/ficha-card';
 import { cn } from '@/lib/utils';
 
 interface OrderStatusProps {
@@ -50,21 +51,24 @@ interface OrderQRCodeProps {
 export function OrderQRCode({ order }: OrderQRCodeProps) {
   if (order.status === 'delivered') return null;
 
+  const fichas = (order.fichas ?? []).filter(isFichaValid);
+  if (fichas.length === 0) return null;
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="rounded-2xl bg-card p-6 shadow-md border border-border text-center"
+      className="rounded-2xl bg-card p-6 shadow-md border border-border"
     >
-      <h3 className="font-bold text-lg text-card-foreground mb-4">
-        Mostre esta ficha na barraca
+      <h3 className="font-bold text-lg text-card-foreground mb-4 text-center">
+        {fichas.length === 1 ? 'Mostre esta ficha na barraca' : 'Mostre estas fichas na barraca'}
       </h3>
 
-      <FichaQrCode qrCode={order.qrCode} />
-
-      <p className="mt-4 text-sm text-muted-foreground font-mono">
-        {order.qrCode}
-      </p>
+      <div className="space-y-4">
+        {fichas.map((ficha) => (
+          <FichaCard key={ficha.id} ficha={ficha} />
+        ))}
+      </div>
     </motion.div>
   );
 }

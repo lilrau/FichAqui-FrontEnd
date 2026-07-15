@@ -153,11 +153,14 @@ function PedidoContent() {
   }, [paymentMethod, savedCards.length, mpEnabled]);
 
   useEffect(() => {
+    const currentOption = paymentOptions.find((option) => option.id === paymentMethod);
+    if (currentOption && !currentOption.disabled) return;
+
     const firstAvailable = paymentOptions.find((option) => !option.disabled);
     if (firstAvailable) {
       setPaymentMethod(firstAvailable.id);
     }
-  }, [paymentOptions]);
+  }, [paymentOptions, paymentMethod]);
 
   const completeCheckoutSuccess = async (order: Order) => {
     await refreshWallet();
