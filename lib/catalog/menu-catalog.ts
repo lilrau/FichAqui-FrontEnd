@@ -27,7 +27,8 @@ export function buildMenuItem(
   label: string,
   price: number,
   available: boolean,
-  badge?: string
+  badge?: string,
+  stock = 0
 ): MenuItem {
   const hasMultipleVariants =
     offering.variants.filter((variant) => variant.available).length > 1 ||
@@ -49,6 +50,7 @@ export function buildMenuItem(
     stallId: stall.id,
     stallName: stall.name,
     variantLabel: label,
+    stock,
   };
 }
 
@@ -77,8 +79,9 @@ export function buildMenuItemsFromOfferings(
           template.id,
           template.label,
           variant.price,
-          variant.available,
-          variant.badge
+          variant.available && variant.stock > 0,
+          variant.badge,
+          variant.stock
         ),
       ];
     });

@@ -70,7 +70,7 @@ export default function ProductPage({ params }: ProductPageProps) {
   const selectedEntry = selectedOffering
     ? { product, offerings: [selectedOffering] }
     : entry;
-  const activeVariants =
+  const visibleVariants =
     selectedOffering?.variants.filter((variant) => variant.available) ?? [];
 
   return (
@@ -194,7 +194,7 @@ export default function ProductPage({ params }: ProductPageProps) {
               <p className="text-sm text-muted-foreground">{selectedStall.name}</p>
             </div>
 
-            {activeVariants.map((variant) => (
+            {visibleVariants.map((variant) => (
               <OfferingVariantRow
                 key={`${selectedOffering.id}-${variant.templateId}`}
                 product={product}

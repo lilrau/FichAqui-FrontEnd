@@ -41,12 +41,22 @@ Lista pré-definida de Produtos mantida pelo backend. Fonte única de identidade
 _Avoid_: Menu master, cardápio base
 
 **Variante**:
-Uma opção comprável dentro de uma Oferta (ex.: Pastel de Carne, Copo 300ml). Pertence à Oferta, não ao Produto diretamente. Os rótulos vêm da lista pré-definida do Produto no Catálogo Global; o organizador ativa quais variantes oferece e define o preço de cada uma.
+Uma opção comprável dentro de uma Oferta (ex.: Pastel de Carne, Copo 300ml). Pertence à Oferta, não ao Produto diretamente. Os rótulos vêm da lista pré-definida do Produto no Catálogo Global; o organizador ativa quais variantes oferece, define o preço e a quantidade em estoque de cada uma. Variante só pode ser ativada pelo organizador com preço maior que zero e estoque maior que zero.
 _Avoid_: SKU, option
 
 **Oferta**:
-A disponibilidade de um Produto em uma Barraca específica, com variantes ativas, preços e estoque próprios. O organizador monta Ofertas na Configuração de Barraca.
+A disponibilidade de um Produto em uma Barraca específica, com variantes ativas, preços e estoque por variante. O organizador monta Ofertas na Configuração de Barraca. Produto novo adicionado à barraca entra com todas as variantes inativas até o organizador definir preço e estoque.
 _Avoid_: Listing, anúncio
+
+**Estoque**:
+Quantidade disponível para venda de uma Variante ativa numa Barraca. Controlado item a item (por variante), não como saldo único da Barraca. Toda variante ativa exige quantidade informada; não há modo ilimitado.
+Diminui somente após pagamento confirmado do Pedido; pagamento pendente não consome estoque. Pedido com quantidade acima do estoque disponível é rejeitado por completo no checkout. No carrinho, a quantidade selecionável não pode exceder o estoque disponível da variante.
+_Avoid_: Stock da barraca, inventário geral, reserva no checkout
+
+**Esgotado**:
+Estado de uma Variante com estoque zerado. Permanece visível no Cardápio do Evento com indicação clara, mas não pode ser adicionada ao carrinho. É distinto de Variante desativada pelo organizador.
+Ao repor estoque acima de zero, a variante volta a ser comprável automaticamente se ainda estiver ativa pelo organizador. O consumidor não vê contagem de unidades restantes — apenas a indicação Esgotado quando o estoque zera.
+_Avoid_: Indisponível, fora de estoque (genérico)
 
 **Pedido**:
 Uma compra do consumidor, podendo conter itens de Barracas diferentes no mesmo pedido. Gera Fichas conforme confirmação do pagamento (ver regra por meio abaixo). Pagamento recusado ou expirado gera Pedido registrado para auditoria, **sem** Fichas (ex.: status de falha de pagamento).

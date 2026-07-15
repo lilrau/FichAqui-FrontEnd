@@ -6,7 +6,6 @@ import {
   Plus,
   Store,
   User,
-  Package,
   Edit2,
   Trash2,
   X,
@@ -40,7 +39,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
     responsible: '',
     color: '#ef4444',
     status: 'open',
-    stock: 100,
   });
 
   const handleSave = async () => {
@@ -51,7 +49,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
         responsible: newStall.responsible || '',
         color: newStall.color || '#ef4444',
         status: newStall.status || 'open',
-        stock: newStall.stock || 100,
       });
     } else {
       await addStall(eventId, {
@@ -60,7 +57,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
         responsible: newStall.responsible || '',
         color: newStall.color || '#ef4444',
         status: newStall.status || 'open',
-        stock: newStall.stock || 100,
       });
     }
     closeModal();
@@ -85,7 +81,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
       responsible: stall.responsible,
       color: stall.color,
       status: stall.status,
-      stock: stall.stock,
     });
     setIsModalOpen(true);
   };
@@ -99,7 +94,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
       responsible: '',
       color: '#ef4444',
       status: 'open',
-      stock: 100,
     });
   };
 
@@ -108,7 +102,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
       <AdminSubpageHeader eventId={eventId} title="Pontos de Venda" />
 
       <main className="px-4 py-6 space-y-4">
-        {/* Add Button */}
         <Button
           onClick={() => setIsModalOpen(true)}
           className="w-full h-14 rounded-xl text-lg"
@@ -117,7 +110,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
           Nova Barraca
         </Button>
 
-        {/* Stalls List */}
         <div className="space-y-3">
           {stallsList.map((stall, index) => (
             <motion.div
@@ -139,10 +131,10 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                     <h3 className="font-bold text-foreground truncate">{stall.name}</h3>
                     <span
                       className={cn(
-                        "px-2 py-0.5 rounded-full text-xs font-medium",
+                        'px-2 py-0.5 rounded-full text-xs font-medium',
                         stall.status === 'open'
-                          ? "bg-green-500/10 text-green-600"
-                          : "bg-red-500/10 text-red-600"
+                          ? 'bg-green-500/10 text-green-600'
+                          : 'bg-red-500/10 text-red-600'
                       )}
                     >
                       {stall.status === 'open' ? 'Aberta' : 'Fechada'}
@@ -152,10 +144,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                     <span className="flex items-center gap-1">
                       <User className="h-3.5 w-3.5" />
                       {stall.responsible}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Package className="h-3.5 w-3.5" />
-                      {stall.stock} un
                     </span>
                   </div>
                   <div className="mt-1">
@@ -168,7 +156,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="mt-4 flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -209,7 +196,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
         </div>
       </main>
 
-      {/* Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <>
@@ -227,7 +213,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="fixed inset-x-0 bottom-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl bg-card shadow-2xl"
             >
-              {/* Handle */}
               <div className="sticky top-0 bg-card z-10">
                 <div className="flex justify-center pt-3">
                   <div className="h-1.5 w-12 rounded-full bg-border" />
@@ -246,7 +231,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
               </div>
 
               <div className="px-5 py-4 space-y-4">
-                {/* Nome */}
                 <div>
                   <label className="text-sm font-medium text-foreground">Nome da Barraca</label>
                   <Input
@@ -257,7 +241,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                   />
                 </div>
 
-                {/* Responsável */}
                 <div>
                   <label className="text-sm font-medium text-foreground">Responsável</label>
                   <Input
@@ -268,7 +251,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                   />
                 </div>
 
-                {/* Categoria */}
                 <div>
                   <label className="text-sm font-medium text-foreground">Categoria</label>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -277,10 +259,10 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                         key={cat.id}
                         onClick={() => setNewStall({ ...newStall, category: cat.id })}
                         className={cn(
-                          "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                          'px-4 py-2 rounded-xl text-sm font-medium transition-all',
                           newStall.category === cat.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary text-secondary-foreground"
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-secondary-foreground'
                         )}
                       >
                         {cat.name}
@@ -289,7 +271,6 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                   </div>
                 </div>
 
-                {/* Cor */}
                 <div>
                   <label className="text-sm font-medium text-foreground">Cor Identificadora</label>
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -298,8 +279,8 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                         key={color}
                         onClick={() => setNewStall({ ...newStall, color })}
                         className={cn(
-                          "h-10 w-10 rounded-xl transition-all",
-                          newStall.color === color && "ring-2 ring-offset-2 ring-foreground"
+                          'h-10 w-10 rounded-xl transition-all',
+                          newStall.color === color && 'ring-2 ring-offset-2 ring-foreground'
                         )}
                         style={{ backgroundColor: color }}
                       >
@@ -310,21 +291,8 @@ export function BarracasManager({ eventId }: { eventId: string }) {
                     ))}
                   </div>
                 </div>
-
-                {/* Estoque */}
-                <div>
-                  <label className="text-sm font-medium text-foreground">Estoque Inicial</label>
-                  <Input
-                    type="number"
-                    value={newStall.stock}
-                    onChange={(e) => setNewStall({ ...newStall, stock: parseInt(e.target.value) })}
-                    className="mt-2 h-14 rounded-xl text-base"
-                    placeholder="100"
-                  />
-                </div>
               </div>
 
-              {/* Footer */}
               <div className="sticky bottom-0 bg-card border-t border-border px-5 py-4 pb-8">
                 <Button
                   onClick={handleSave}

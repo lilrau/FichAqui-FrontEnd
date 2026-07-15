@@ -65,6 +65,7 @@ interface EventStoreContextType {
   ) => Promise<Stall>;
   updateStall: (stallId: string, patch: Partial<Stall>) => Promise<void>;
   deleteStall: (stallId: string) => void;
+  saveStallOfferings: (stallId: string, offerings: Offering[]) => Promise<Offering[]>;
   addOffering: (offering: Offering) => Promise<Offering>;
   updateOffering: (offeringId: string, patch: Partial<Offering>) => Promise<void>;
   deleteOffering: (offeringId: string) => Promise<void>;
@@ -373,6 +374,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       addStall,
       updateStall,
       deleteStall,
+      saveStallOfferings: replaceStallOfferings,
       addOffering,
       updateOffering,
       deleteOffering,
@@ -403,6 +405,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       addStall,
       updateStall,
       deleteStall,
+      replaceStallOfferings,
       addOffering,
       updateOffering,
       deleteOffering,

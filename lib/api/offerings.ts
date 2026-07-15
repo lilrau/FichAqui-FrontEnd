@@ -27,6 +27,12 @@ export function toUpsertOfferingPayload(offering: Offering): UpsertOfferingPaylo
   return {
     productId: offering.productId,
     available: offering.available,
-    variants: offering.variants,
+    variants: offering.variants.map((variant) => ({
+      templateId: variant.templateId,
+      price: Number(variant.price ?? 0),
+      stock: Number(variant.stock ?? 0),
+      available: Boolean(variant.available),
+      ...(variant.badge ? { badge: variant.badge } : {}),
+    })),
   };
 }

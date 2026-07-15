@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, X } from 'lucide-react';
 import { useEventStore } from '@/lib/event-store';
 import { createOfferingFromCatalogProduct } from '@/lib/catalog/create-offering';
+import { getErrorMessage } from '@/lib/api/errors';
 import type { CatalogProduct, Offering, OfferingVariant, Stall } from '@/lib/types/event-domain';
 import { Button } from '@/components/ui/button';
 import { ProductImage } from '@/components/product-image';
@@ -17,43 +18,138 @@ interface StallOfferingsModalProps {
   onClose: () => void;
 }
 
+const numberInputClassName =
+  'h-10 rounded-lg text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+
+function normalizeVariant(
+  variant: Partial<OfferingVariant> & { templateId: string }
+): OfferingVariant {
+  return {
+    templateId: variant.templateId,
+    price: Number(variant.price ?? 0),
+    stock: Number(variant.stock ?? 0),
+    available: Boolean(variant.available),
+    badge: variant.badge,
+  };
+}
+
+function cloneOfferings(offerings: Offering[]): Offering[] {
+  return offerings.map((offering) => ({
+    ...offering,
+    variants: offering.variants.map((variant) => normalizeVariant(variant)),
+  }));
+}
+
+function formatNumberInputValue(value: number | undefined): string {
+  const normalized = Number(value ?? 0);
+  return normalized === 0 ? '' : String(normalized);
+}
+
+function activationErrorMessage(variant: OfferingVariant): string | null {
+  if (variant.price <= 0 && variant.stock <= 0) {
+    return 'Informe preço e estoque maiores que zero antes de ativar.';
+  }
+  if (variant.price <= 0) {
+    return 'Informe o preço (maior que zero) antes de ativar.';
+  }
+  if (variant.stock <= 0) {
+    return 'Informe o estoque (maior que zero) antes de ativar.';
+  }
+  return null;
+}
+
+function canActivateVariant(variant: OfferingVariant): boolean {
+  return variant.price > 0 && variant.stock > 0;
+}
+
 export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps) {
-  const {
-    catalogProducts,
-    getOfferingsByStallId,
-    addOffering,
-    updateOffering,
-    deleteOffering,
-  } = useEventStore();
-  const stallOfferings = getOfferingsByStallId(stall.id);
+  const { catalogProducts, getOfferingsByStallId, saveStallOfferings } = useEventStore();
+  const [draftOfferings, setDraftOfferings] = useState<Offering[]>(() =>
+    cloneOfferings(getOfferingsByStallId(stall.id))
+  );
   const [showCatalog, setShowCatalog] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const availableCatalogProducts = useMemo(() => {
-    const offeredIds = new Set(stallOfferings.map((offering) => offering.productId));
+    const offeredIds = new Set(draftOfferings.map((offering) => offering.productId));
     return catalogProducts.filter((product) => !offeredIds.has(product.id));
-  }, [catalogProducts, stallOfferings]);
+  }, [catalogProducts, draftOfferings]);
+
+  const updateDraftVariant = (
+    offeringId: string,
+    templateId: string,
+    patch: Partial<OfferingVariant>
+  ) => {
+    setDraftOfferings((prev) =>
+      prev.map((offering) => {
+        if (offering.id !== offeringId) return offering;
+
+        const current = normalizeVariant(
+          offering.variants.find((variant) => variant.templateId === templateId) ?? {
+            templateId,
+            price: 0,
+            stock: 0,
+            available: false,
+          }
+        );
+        const next = normalizeVariant({ ...current, ...patch });
+
+        if (patch.available === true) {
+          const message = activationErrorMessage(next);
+          if (message) {
+            setActivationError(message);
+            return offering;
+          }
+        }
+
+        setActivationError(null);
+        return {
+          ...offering,
+          variants: offering.variants.some((variant) => variant.templateId === templateId)
+            ? offering.variants.map((variant) =>
+                variant.templateId === templateId ? next : variant
+              )
+            : [...offering.variants, next],
+        };
+      })
+    );
+  };
 
   const handleAddProduct = (product: CatalogProduct) => {
     const offering = createOfferingFromCatalogProduct(stall.eventId, stall.id, product.id);
     offering.variants = product.variantTemplates.map((template) => ({
       templateId: template.id,
       price: 0,
-      available: true,
+      stock: 0,
+      available: false,
     }));
-    addOffering(offering);
+    setDraftOfferings((prev) => [...prev, offering]);
     setShowCatalog(false);
+    setSaveError(null);
   };
 
-  const handleVariantChange = (
-    offering: Offering,
-    templateId: string,
-    patch: Partial<OfferingVariant>
-  ) => {
-    updateOffering(offering.id, {
-      variants: offering.variants.map((variant) =>
-        variant.templateId === templateId ? { ...variant, ...patch } : variant
-      ),
-    });
+  const handleDeleteOffering = (offeringId: string) => {
+    setDraftOfferings((prev) => prev.filter((offering) => offering.id !== offeringId));
+    setSaveError(null);
+  };
+
+  const handleConcluir = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const normalized = draftOfferings.map((offering) => ({
+        ...offering,
+        variants: offering.variants.map((variant) => normalizeVariant(variant)),
+      }));
+      await saveStallOfferings(stall.id, normalized);
+      onClose();
+    } catch (error) {
+      setSaveError(getErrorMessage(error, 'Não foi possível salvar o cardápio da barraca.'));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getProduct = (productId: string) =>
@@ -94,12 +190,23 @@ export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {stallOfferings.length === 0 ? (
+          {activationError && (
+            <p className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {activationError}
+            </p>
+          )}
+          {saveError && (
+            <p className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {saveError}
+            </p>
+          )}
+
+          {draftOfferings.length === 0 ? (
             <p className="rounded-xl bg-secondary px-4 py-3 text-sm text-muted-foreground">
               Nenhum produto adicionado. Selecione itens do catálogo global.
             </p>
           ) : (
-            stallOfferings.map((offering) => {
+            draftOfferings.map((offering) => {
               const product = getProduct(offering.productId);
               if (!product) return null;
 
@@ -127,7 +234,7 @@ export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps
                       variant="outline"
                       size="sm"
                       className="rounded-lg text-destructive shrink-0"
-                      onClick={() => deleteOffering(offering.id)}
+                      onClick={() => handleDeleteOffering(offering.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -135,49 +242,76 @@ export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps
 
                   <div className="space-y-2">
                     {product.variantTemplates.map((template) => {
-                      const variant = offering.variants.find(
-                        (entry) => entry.templateId === template.id
-                      ) ?? {
-                        templateId: template.id,
-                        price: 0,
-                        available: false,
-                      };
+                      const variant = normalizeVariant(
+                        offering.variants.find((entry) => entry.templateId === template.id) ?? {
+                          templateId: template.id,
+                          price: 0,
+                          stock: 0,
+                          available: false,
+                        }
+                      );
+                      const canActivate = canActivateVariant(variant);
 
                       return (
                         <div
                           key={template.id}
-                          className="flex items-center gap-3 rounded-xl bg-card px-3 py-2"
+                          className="rounded-xl bg-card px-3 py-3 space-y-2"
                         >
-                          <Switch
-                            checked={variant.available}
-                            onCheckedChange={(available) =>
-                              handleVariantChange(offering, template.id, { available })
-                            }
-                          />
-                          <span className="flex-1 text-sm font-medium text-foreground">
-                            {template.label}
-                          </span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="1"
-                            inputMode="numeric"
-                            value={variant.price}
-                            disabled={!variant.available}
-                            onChange={(event) => {
-                              const raw = event.target.value;
-                              if (raw === '') {
-                                handleVariantChange(offering, template.id, { price: 0 });
-                                return;
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              checked={variant.available}
+                              disabled={!variant.available && !canActivate}
+                              onCheckedChange={(available) =>
+                                updateDraftVariant(offering.id, template.id, { available })
                               }
-                              const parsed = Number(raw);
-                              if (!Number.isFinite(parsed)) return;
-                              handleVariantChange(offering, template.id, {
-                                price: Math.max(0, Math.round(parsed)),
-                              });
-                            }}
-                            className="h-10 w-24 rounded-lg text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                          />
+                            />
+                            <span className="flex-1 text-sm font-medium text-foreground">
+                              {template.label}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Estoque</label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                value={formatNumberInputValue(variant.stock)}
+                                placeholder="0"
+                                onChange={(event) => {
+                                  const raw = event.target.value;
+                                  updateDraftVariant(offering.id, template.id, {
+                                    stock: raw === '' ? 0 : Math.max(0, Number(raw) || 0),
+                                  });
+                                }}
+                                className={cn('mt-1', numberInputClassName, 'text-left')}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Preço</label>
+                              <div className="relative mt-1">
+                                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                  R$
+                                </span>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.5"
+                                  inputMode="decimal"
+                                  value={formatNumberInputValue(variant.price)}
+                                  placeholder="0,00"
+                                  onChange={(event) => {
+                                    const raw = event.target.value;
+                                    updateDraftVariant(offering.id, template.id, {
+                                      price: raw === '' ? 0 : Math.max(0, Number(raw) || 0),
+                                    });
+                                  }}
+                                  className={cn(numberInputClassName, 'pl-9')}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
@@ -242,8 +376,12 @@ export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps
         </div>
 
         <div className="sticky bottom-0 bg-card border-t border-border px-5 py-4 pb-8">
-          <Button onClick={onClose} className="w-full h-14 text-lg font-bold rounded-2xl">
-            Concluir
+          <Button
+            onClick={handleConcluir}
+            disabled={isSaving}
+            className="w-full h-14 text-lg font-bold rounded-2xl"
+          >
+            {isSaving ? 'Salvando?' : 'Concluir'}
           </Button>
         </div>
       </motion.div>

@@ -16,13 +16,23 @@ export function getActiveOfferingVariants(offering: Offering): OfferingVariant[]
   return offering.variants.filter((variant) => variant.available);
 }
 
+export function isVariantPurchasable(variant: OfferingVariant): boolean {
+  return variant.available && variant.stock > 0;
+}
+
+export function isVariantEsgotada(variant: OfferingVariant): boolean {
+  return variant.available && variant.stock === 0;
+}
+
 export function getCardapioPriceParts(entry: CardapioProduct):
   | { kind: 'unavailable' }
   | { kind: 'free' }
   | { kind: 'single'; price: string }
   | { kind: 'from'; price: string } {
   const prices = entry.offerings.flatMap((offering) =>
-    getActiveOfferingVariants(offering).map((variant) => variant.price)
+    getActiveOfferingVariants(offering)
+      .filter(isVariantPurchasable)
+      .map((variant) => variant.price)
   );
 
   if (prices.length === 0) return { kind: 'unavailable' };
@@ -62,8 +72,9 @@ export function offeringVariantToMenuItem(
     template.id,
     template.label,
     variant.price,
-    variant.available,
-    variant.badge
+    variant.available && variant.stock > 0,
+    variant.badge,
+    variant.stock
   );
 }
 
@@ -75,7 +86,7 @@ export function getPurchasableMenuItems(entry: CardapioProduct, stalls: Stall[])
     if (!stall || stall.status !== 'open' || !offering.available) return [];
 
     return offering.variants.flatMap((variant) => {
-      if (!variant.available) return [];
+      if (!isVariantPurchasable(variant)) return [];
       const menuItem = offeringVariantToMenuItem(entry.product, offering, stall, variant);
       return menuItem ? [menuItem] : [];
     });

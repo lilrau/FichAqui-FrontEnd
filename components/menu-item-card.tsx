@@ -11,6 +11,7 @@ import {
   canQuickAddFromCardapio,
   getProductCartQuantity,
   hasMultipleVariants,
+  isVariantEsgotada,
   offeringVariantToMenuItem,
 } from '@/lib/menu-utils';
 import { ProductPriceDisplay, VariantPriceDisplay } from '@/components/product-price-display';
@@ -138,6 +139,7 @@ function CardapioProductCard({ entry }: { entry: CardapioProduct }) {
           ) : (
             <QuantityControl
               quantity={quantity}
+              maxStock={quickAddItem.stock}
               onIncrease={handleAdd}
               onDecrease={handleDecrease}
               size="md"
@@ -225,6 +227,7 @@ function MenuItemCardCompact({
             ) : (
               <QuantityControl
                 quantity={quantity}
+                maxStock={item.stock}
                 onIncrease={handleAdd}
                 onDecrease={handleDecrease}
                 size="md"
@@ -259,6 +262,7 @@ function MenuItemCardCompact({
       </div>
       <QuantityControl
         quantity={quantity}
+        maxStock={item.stock}
         onIncrease={handleAdd}
         onDecrease={handleDecrease}
         size="sm"
@@ -284,18 +288,24 @@ export function OfferingVariantRow({
     ? items.find((cartEntry) => cartEntry.item.id === menuItem.id)
     : undefined;
   const quantity = cartItem?.quantity || 0;
+  const esgotada = isVariantEsgotada(variant);
 
-  if (!menuItem) return null;
+  if (!menuItem && !esgotada) return null;
 
   const handleAdd = () => {
+    if (!menuItem || esgotada) return;
     addItem(menuItem);
   };
 
   const handleDecrease = () => {
-    if (quantity > 0) {
-      updateQuantity(menuItem.id, quantity - 1);
-    }
+    if (!menuItem || quantity <= 0) return;
+    updateQuantity(menuItem.id, quantity - 1);
   };
+
+  const templateLabel =
+    product.variantTemplates.length > 1
+      ? product.variantTemplates.find((template) => template.id === variant.templateId)?.label
+      : product.name;
 
   return (
     <motion.div
@@ -312,26 +322,29 @@ export function OfferingVariantRow({
         />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-card-foreground truncate">
-          {product.variantTemplates.length > 1
-            ? product.variantTemplates.find((template) => template.id === variant.templateId)
-                ?.label
-            : product.name}
-        </p>
+        <p className="font-semibold text-card-foreground truncate">{templateLabel}</p>
         <VariantPriceDisplay price={variant.price} />
       </div>
-      <QuantityControl
-        quantity={quantity}
-        onIncrease={handleAdd}
-        onDecrease={handleDecrease}
-        size="sm"
-      />
+      {esgotada ? (
+        <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+          Esgotado
+        </span>
+      ) : menuItem ? (
+        <QuantityControl
+          quantity={quantity}
+          maxStock={menuItem.stock}
+          onIncrease={handleAdd}
+          onDecrease={handleDecrease}
+          size="sm"
+        />
+      ) : null}
     </motion.div>
   );
 }
 
 interface QuantityControlProps {
   quantity: number;
+  maxStock: number;
   onIncrease: () => void;
   onDecrease: () => void;
   size?: 'sm' | 'md';
@@ -339,44 +352,55 @@ interface QuantityControlProps {
 
 function QuantityControl({
   quantity,
+  maxStock,
   onIncrease,
   onDecrease,
   size = 'md',
 }: QuantityControlProps) {
   const buttonSize = size === 'sm' ? 'h-8 w-8' : 'h-10 w-10';
   const textSize = size === 'sm' ? 'text-sm w-6' : 'text-base w-8';
+  const atMax = quantity >= maxStock;
 
   return (
-    <div className="flex items-center gap-1">
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        onClick={(event) => {
-          event.stopPropagation();
-          onDecrease();
-        }}
-        className={cn(
-          buttonSize,
-          'flex items-center justify-center rounded-lg bg-secondary text-secondary-foreground'
-        )}
-      >
-        <Minus className="h-4 w-4" />
-      </motion.button>
-      <span className={cn(textSize, 'text-center font-bold text-foreground')}>
-        {quantity}
-      </span>
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        onClick={(event) => {
-          event.stopPropagation();
-          onIncrease();
-        }}
-        className={cn(
-          buttonSize,
-          'flex items-center justify-center rounded-lg bg-primary text-primary-foreground'
-        )}
-      >
-        <Plus className="h-4 w-4" />
-      </motion.button>
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-1">
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDecrease();
+          }}
+          className={cn(
+            buttonSize,
+            'flex items-center justify-center rounded-lg bg-secondary text-secondary-foreground'
+          )}
+        >
+          <Minus className="h-4 w-4" />
+        </motion.button>
+        <span className={cn(textSize, 'text-center font-bold text-foreground')}>
+          {quantity}
+        </span>
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          disabled={atMax}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (!atMax) onIncrease();
+          }}
+          className={cn(
+            buttonSize,
+            'flex items-center justify-center rounded-lg bg-primary text-primary-foreground',
+            atMax && 'cursor-not-allowed opacity-50'
+          )}
+        >
+          <Plus className="h-4 w-4" />
+        </motion.button>
+      </div>
+      {atMax && maxStock > 0 && (
+        <span className="text-[10px] font-medium text-muted-foreground">
+          Máximo disponível: {maxStock}
+        </span>
+      )}
     </div>
   );
 }

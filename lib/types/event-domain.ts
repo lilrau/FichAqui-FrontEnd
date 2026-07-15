@@ -17,6 +17,7 @@ export interface OfferingVariant {
   templateId: string;
   price: number;
   available: boolean;
+  stock: number;
   badge?: string;
 }
 
@@ -66,6 +67,7 @@ export interface MenuItem {
   stallId: string;
   stallName: string;
   variantLabel?: string;
+  stock: number;
 }
 
 export interface CardapioProduct {
@@ -88,7 +90,6 @@ export interface Stall {
   responsible: string;
   color: string;
   status: 'open' | 'closed';
-  stock: number;
 }
 
 export type OrderStatus = 'pending_payment' | 'payment_failed' | 'available' | 'delivered';
