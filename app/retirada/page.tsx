@@ -137,7 +137,9 @@ export default function RetiradaPage() {
         <div className="px-4 py-4">
           <h1 className="text-lg font-bold text-foreground">Retirada</h1>
           <p className="text-sm text-muted-foreground">
-            {user?.stallId ? `Barraca vinculada · ${user.stallId}` : 'Leitura de QR'}
+            {user?.stallId
+              ? `Barraca vinculada · ${user.stallName ?? user.stallId}`
+              : 'Leitura de QR'}
           </p>
         </div>
       </header>

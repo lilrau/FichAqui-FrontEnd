@@ -21,6 +21,10 @@ import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
 import { useEventStore } from '@/lib/event-store';
 import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
+import {
+  isTokenizedSavedCard,
+  pickDefaultSavedCard,
+} from '@/lib/wallet/saved-cards';
 import { useUserOrders } from '@/lib/user-orders-context';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import { OrderStatus, OrderQRCode } from '@/components/order-status';
@@ -97,7 +101,7 @@ function PedidoContent() {
   const eventId = useEventId();
   const { refreshEventScope } = useEventStore();
   const { items, total, fulfillOrder, currentOrder, setCurrentOrder } = useCart();
-  const { savedCards, defaultCard, balance, refreshWallet } = useWallet();
+  const { savedCards, balance, refreshWallet } = useWallet();
   const { refreshUserOrders } = useUserOrders();
   const { config: paymentsConfig } = usePaymentsConfig();
   const mpFormRef = useRef<MpCardFormHandle>(null);
@@ -118,6 +122,13 @@ function PedidoContent() {
   const [pendingOrder, setPendingOrder] = useState<Order | null>(null);
 
   const mpEnabled = paymentsConfig.enabled && Boolean(paymentsConfig.publicKey);
+  const selectedSavedCard = useMemo(
+    () => savedCards.find((card) => card.id === selectedCardId),
+    [savedCards, selectedCardId]
+  );
+  const selectedCardIsTokenized = selectedSavedCard
+    ? isTokenizedSavedCard(selectedSavedCard)
+    : false;
   const canUseSavedCardAtCheckout = savedCards.length > 0;
   const cardEnabled =
     paymentsConfig.cardEnabled && (mpEnabled || savedCards.length > 0);
@@ -130,29 +141,27 @@ function PedidoContent() {
   const canPayWithCard =
     paymentMethod !== 'card' ||
     (cardMode === 'saved'
-      ? canUseSavedCardAtCheckout && Boolean(selectedCardId) && (!mpEnabled || savedCardFormReady)
-      : (!mpEnabled || (mpEnabled && mpFormReady)));
+      ? canUseSavedCardAtCheckout &&
+        Boolean(selectedCardId) &&
+        selectedCardIsTokenized &&
+        (!mpEnabled || savedCardFormReady)
+      : !mpEnabled || (mpEnabled && mpFormReady));
 
   useEffect(() => {
-    if (defaultCard) {
-      setSelectedCardId(defaultCard.id);
+    const preferred = pickDefaultSavedCard(savedCards);
+    if (preferred) {
+      setSelectedCardId(preferred.id);
     }
-  }, [defaultCard]);
-
-  useEffect(() => {
-    if (mpEnabled) {
-      setSaveCard(false);
-    }
-  }, [mpEnabled]);
+  }, [savedCards]);
 
   useEffect(() => {
     if (paymentMethod !== 'card') return;
-    if (mpEnabled || savedCards.length === 0) {
+    if (savedCards.length === 0) {
       setCardMode('new');
-    } else {
-      setCardMode('saved');
+      return;
     }
-  }, [paymentMethod, savedCards.length, mpEnabled]);
+    setCardMode('saved');
+  }, [paymentMethod, savedCards.length]);
 
   useEffect(() => {
     const currentOption = paymentOptions.find((option) => option.id === paymentMethod);
@@ -612,6 +621,7 @@ function PedidoContent() {
                             <div className="space-y-3">
                               {savedCards.map((card, index) => {
                                 const selected = selectedCardId === card.id;
+                                const tokenized = isTokenizedSavedCard(card);
 
                                 return (
                                   <motion.div
@@ -655,7 +665,23 @@ function PedidoContent() {
                                         </span>
                                       )}
                                     </label>
-                                    {selected && mpEnabled && paymentsConfig.publicKey && (
+                                    {selected && !tokenized && (
+                                      <div className="border-t border-border bg-muted/30 px-3 py-3 rounded-b-xl">
+                                        <p className="text-xs text-muted-foreground">
+                                          Este cartão ainda não está ativo no Mercado Pago. Use{' '}
+                                          <button
+                                            type="button"
+                                            className="font-medium text-primary underline-offset-2 hover:underline"
+                                            onClick={() => setCardMode('new')}
+                                          >
+                                            Novo cartão
+                                          </button>{' '}
+                                          e marque &quot;Salvar cartão&quot;, ou cadastre em Métodos
+                                          de pagamento.
+                                        </p>
+                                      </div>
+                                    )}
+                                    {selected && tokenized && mpEnabled && paymentsConfig.publicKey && (
                                       <div className="border-t border-primary/10 bg-background/60 px-3 py-3 rounded-b-xl space-y-1.5">
                                         <label className="text-xs font-semibold text-foreground">
                                           Código de segurança (CVV)

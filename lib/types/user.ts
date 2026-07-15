@@ -10,5 +10,6 @@ export interface SessionUser {
   roles: UserRole[];
   organizerId?: string | null;
   stallId?: string | null;
+  stallName?: string | null;
   eventId?: string | null;
 }

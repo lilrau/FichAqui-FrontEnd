@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { PixPaymentPanel } from '@/components/payments/pix-payment-panel';
 import { PendingPaymentPanel } from '@/components/payments/pending-payment-panel';
 import { MpCardForm, type MpCardFormHandle } from '@/components/payments/mp-card-form';
@@ -12,6 +15,10 @@ import { hasPendingPix, hasPendingCardPayment } from '@/lib/api/normalize-paymen
 import { getErrorMessage } from '@/lib/api/errors';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import { useWallet } from '@/lib/wallet-context';
+import {
+  isTokenizedSavedCard,
+  pickDefaultSavedCard,
+} from '@/lib/wallet/saved-cards';
 import type { CardPaymentType, PaymentInfo } from '@/lib/types/payment';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +34,7 @@ export function WalletTopUpDialog({
   onSuccess,
 }: WalletTopUpDialogProps) {
   const { config } = usePaymentsConfig();
-  const { savedCards, defaultCard, refreshWallet } = useWallet();
+  const { savedCards, refreshWallet } = useWallet();
   const mpFormRef = useRef<MpCardFormHandle>(null);
   const savedCardFormRef = useRef<MpSavedCardFormHandle>(null);
 
@@ -46,16 +53,20 @@ export function WalletTopUpDialog({
   const amountValid = Number.isFinite(parsedAmount) && parsedAmount >= 1;
   const mpEnabled = config.enabled && Boolean(config.publicKey);
   const pixEnabled = config.pixEnabled || config.topUpEnabled;
-  const cardEnabled = config.cardEnabled && (mpEnabled || savedCards.length > 0);
+  const cardEnabled =
+    config.cardEnabled && (mpEnabled || savedCards.length > 0);
   const canUseSavedCard = savedCards.length > 0;
+  const selectedSavedCard = savedCards.find((card) => card.id === selectedCardId);
+  const selectedCardIsTokenized = selectedSavedCard
+    ? isTokenizedSavedCard(selectedSavedCard)
+    : false;
 
   useEffect(() => {
-    if (defaultCard) {
-      setSelectedCardId(defaultCard.id);
-    } else if (savedCards[0]) {
-      setSelectedCardId(savedCards[0].id);
+    const preferred = pickDefaultSavedCard(savedCards);
+    if (preferred) {
+      setSelectedCardId(preferred.id);
     }
-  }, [defaultCard, savedCards]);
+  }, [savedCards]);
 
   useEffect(() => {
     if (savedCards.length === 0) {
@@ -65,15 +76,24 @@ export function WalletTopUpDialog({
     }
   }, [savedCards.length]);
 
+  useEffect(() => {
+    if (!open) {
+      setAsyncPayment(null);
+      setError(null);
+      setSubmitting(false);
+    }
+  }, [open]);
+
   const canPay =
     amountValid &&
     (paymentMethod === 'pix'
       ? pixEnabled
       : cardMode === 'saved'
-        ? canUseSavedCard && Boolean(selectedCardId) && (!mpEnabled || savedCardFormReady)
-        : (!mpEnabled || (mpEnabled && mpFormReady)));
-
-  if (!open) return null;
+        ? canUseSavedCard &&
+          Boolean(selectedCardId) &&
+          selectedCardIsTokenized &&
+          (!mpEnabled || savedCardFormReady)
+        : !mpEnabled || (mpEnabled && mpFormReady));
 
   const handleTopUp = async () => {
     if (!canPay) return;
@@ -135,58 +155,91 @@ export function WalletTopUpDialog({
     }
   };
 
-  if (asyncPayment) {
-    const panelProps = {
-      payment: asyncPayment,
-      approvedMessage: 'Atualizando sua carteira...',
-      onApproved: () => {
-        void (async () => {
-          const wallet = await fetchWallet();
-          await refreshWallet();
-          onSuccess(wallet.balance);
+  const asyncPanelProps = asyncPayment
+    ? {
+        payment: asyncPayment,
+        approvedMessage: 'Atualizando sua carteira...',
+        onApproved: () => {
+          void (async () => {
+            const wallet = await fetchWallet();
+            await refreshWallet();
+            onSuccess(wallet.balance);
+            onClose();
+          })();
+        },
+        onRejected: () => {
+          setError(
+            hasPendingPix(asyncPayment)
+              ? 'PIX expirado ou recusado.'
+              : 'Pagamento recusado ou não confirmado.'
+          );
+          setAsyncPayment(null);
+        },
+        onCancel: () => {
+          setAsyncPayment(null);
           onClose();
-        })();
-      },
-      onRejected: () => {
-        setError(
-          hasPendingPix(asyncPayment)
-            ? 'PIX expirado ou recusado.'
-            : 'Pagamento recusado ou não confirmado.'
-        );
-        setAsyncPayment(null);
-      },
-      onCancel: () => {
-        setAsyncPayment(null);
-        onClose();
-      },
-    };
-
-    return (
-      <div className="fixed inset-0 z-50 bg-background">
-        {hasPendingPix(asyncPayment) ? (
-          <PixPaymentPanel {...panelProps} />
-        ) : (
-          <PendingPaymentPanel {...panelProps} />
-        )}
-      </div>
-    );
-  }
+        },
+      }
+    : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-background p-6 sm:rounded-3xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Adicionar créditos</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-muted-foreground"
+    <BodyPortal>
+      <AnimatePresence>
+        {open && asyncPayment && asyncPanelProps && (
+          <motion.div
+            key="wallet-top-up-async"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-background"
           >
-            Fechar
-          </button>
-        </div>
+            {hasPendingPix(asyncPayment) ? (
+              <PixPaymentPanel {...asyncPanelProps} />
+            ) : (
+              <PendingPaymentPanel {...asyncPanelProps} />
+            )}
+          </motion.div>
+        )}
 
-        <div className="space-y-6">
+        {open && !asyncPayment && (
+          <>
+            <motion.div
+              key="wallet-top-up-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={onClose}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            />
+
+            <motion.div
+              key="wallet-top-up-sheet"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[90vh] overflow-y-auto rounded-t-3xl bg-card shadow-2xl"
+            >
+              <div className="sticky top-0 z-10 bg-card">
+                <div className="flex justify-center pt-3">
+                  <div className="h-1.5 w-12 rounded-full bg-border" />
+                </div>
+                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                  <h2 className="text-lg font-bold text-card-foreground">Adicionar créditos</h2>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-secondary-foreground"
+                    aria-label="Fechar"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-6 px-5 py-4 pb-8">
           <div>
             <label className="mb-1 block text-sm font-medium text-foreground">
               Valor (R$)
@@ -274,6 +327,7 @@ export function WalletTopUpDialog({
                   <div className="space-y-3">
                     {savedCards.map((card) => {
                       const selected = selectedCardId === card.id;
+                      const tokenized = isTokenizedSavedCard(card);
                       return (
                         <div
                           key={card.id}
@@ -310,7 +364,23 @@ export function WalletTopUpDialog({
                               </span>
                             )}
                           </label>
-                          {selected && mpEnabled && config.publicKey && (
+                          {selected && !tokenized && (
+                            <div className="border-t border-border bg-muted/30 px-3 py-3 rounded-b-xl">
+                              <p className="text-xs text-muted-foreground">
+                                Este cartão ainda não está ativo no Mercado Pago. Use{' '}
+                                <button
+                                  type="button"
+                                  className="font-medium text-primary underline-offset-2 hover:underline"
+                                  onClick={() => setCardMode('new')}
+                                >
+                                  Novo cartão
+                                </button>{' '}
+                                e marque &quot;Salvar cartão&quot;, ou cadastre em Métodos de
+                                pagamento.
+                              </p>
+                            </div>
+                          )}
+                          {selected && tokenized && mpEnabled && config.publicKey && (
                             <div className="border-t border-primary/10 bg-background/60 px-3 py-3 rounded-b-xl space-y-1.5">
                               <label className="text-xs font-semibold text-foreground">
                                 Código de segurança (CVV)
@@ -384,8 +454,23 @@ export function WalletTopUpDialog({
                 ? 'Pagar com PIX'
                 : 'Pagar com Cartão'}
           </Button>
-        </div>
-      </div>
-    </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </BodyPortal>
   );
+}
+
+function BodyPortal({ children }: { children: ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(children, document.body);
 }

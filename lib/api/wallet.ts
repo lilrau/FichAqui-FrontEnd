@@ -2,7 +2,7 @@ import { apiRequest } from '@/lib/api/client';
 import { normalizePaymentInfo } from '@/lib/api/normalize-payment';
 import type { CardBrand } from '@/lib/card-brand';
 import type { CardPaymentType, TopUpResponse } from '@/lib/types/payment';
-import type { SavedPaymentCard, WalletData } from '@/lib/types/wallet';
+import type { SavedPaymentCard, WalletData, WalletTransaction } from '@/lib/types/wallet';
 
 interface WalletResponse {
   balance: number;
@@ -55,6 +55,36 @@ export async function fetchWallet(): Promise<WalletData> {
     balance: data.balance,
     savedCards: data.savedCards.map(normalizeSavedCard),
   };
+}
+
+interface WalletTransactionsResponse {
+  transactions: {
+    id: string;
+    description: string;
+    direction: WalletTransaction['direction'];
+    amount: number;
+    createdAt: string;
+    type: WalletTransaction['type'];
+    originType: WalletTransaction['originType'];
+    originId: string;
+  }[];
+}
+
+export async function fetchWalletTransactions(): Promise<WalletTransaction[]> {
+  const data = await apiRequest<WalletTransactionsResponse>('/api/user/wallet/transactions', {
+    auth: true,
+  });
+
+  return data.transactions.map((transaction) => ({
+    id: transaction.id,
+    description: transaction.description,
+    direction: transaction.direction,
+    amount: transaction.amount,
+    createdAt: transaction.createdAt,
+    type: transaction.type,
+    originType: transaction.originType,
+    originId: transaction.originId,
+  }));
 }
 
 export async function addWalletCard(payload: {
