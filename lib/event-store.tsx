@@ -46,6 +46,7 @@ interface EventStoreContextType {
   offerings: Offering[];
   isEventScopeLoaded: (eventId: string) => boolean;
   ensureEventLoaded: (eventId: string) => Promise<void>;
+  refreshEventScope: (eventId: string) => Promise<void>;
   refreshEvents: () => Promise<void>;
   getEventById: (id: string) => Event | undefined;
   getStallsByEventId: (eventId: string) => Stall[];
@@ -164,6 +165,21 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     },
     [markEventLoaded]
   );
+
+  const refreshEventScope = useCallback(async (eventId: string) => {
+    if (!eventId) return;
+
+    const [stallsData, offeringsData] = await Promise.all([
+      fetchStalls(eventId),
+      fetchOfferings(eventId),
+    ]);
+    setStalls((prev) => [...prev.filter((stall) => stall.eventId !== eventId), ...stallsData]);
+    setOfferings((prev) => [
+      ...prev.filter((offering) => offering.eventId !== eventId),
+      ...offeringsData,
+    ]);
+    markEventLoaded(eventId);
+  }, [markEventLoaded]);
 
   const isEventScopeLoaded = useCallback(
     (eventId: string) => loadedEventIds.has(eventId),
@@ -358,6 +374,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       offerings,
       isEventScopeLoaded,
       ensureEventLoaded,
+      refreshEventScope,
       refreshEvents,
       getEventById,
       getStallsByEventId,
@@ -389,6 +406,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       offerings,
       isEventScopeLoaded,
       ensureEventLoaded,
+      refreshEventScope,
       refreshEvents,
       getEventById,
       getStallsByEventId,

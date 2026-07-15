@@ -19,6 +19,7 @@ import { fetchUserPedidos } from '@/lib/api/orders';
 import { getErrorMessage } from '@/lib/api/errors';
 import { buildConsumerEventHref } from '@/lib/consumer-scope';
 import { useEventId } from '@/lib/event-context';
+import { useEventStore } from '@/lib/event-store';
 import { formatWalletBalance, useWallet } from '@/lib/wallet-context';
 import { useUserOrders } from '@/lib/user-orders-context';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
@@ -94,6 +95,7 @@ const paymentSelectTransition = {
 function PedidoContent() {
   const router = useRouter();
   const eventId = useEventId();
+  const { refreshEventScope } = useEventStore();
   const { items, total, fulfillOrder, currentOrder, setCurrentOrder } = useCart();
   const { savedCards, defaultCard, balance, refreshWallet } = useWallet();
   const { refreshUserOrders } = useUserOrders();
@@ -163,8 +165,11 @@ function PedidoContent() {
   }, [paymentOptions, paymentMethod]);
 
   const completeCheckoutSuccess = async (order: Order) => {
-    await refreshWallet();
-    await refreshUserOrders();
+    await Promise.all([
+      refreshWallet(),
+      refreshUserOrders(),
+      refreshEventScope(eventId),
+    ]);
     setPendingOrder(order);
     setPaymentFlow('success');
   };
