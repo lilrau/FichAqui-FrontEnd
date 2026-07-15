@@ -71,7 +71,7 @@ export function PedidosBoard({ eventId }: { eventId: string }) {
           }
         />
 
-        <div className="px-4 pb-3 flex gap-2 overflow-x-auto scrollbar-hide">
+        <div className="px-4 py-3 flex gap-2 overflow-x-auto scrollbar-hide">
           {filterButtons.map((btn) => (
             <button
               key={btn.value}

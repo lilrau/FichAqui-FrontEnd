@@ -153,11 +153,14 @@ function PedidoContent() {
   }, [paymentMethod, savedCards.length, mpEnabled]);
 
   useEffect(() => {
+    const currentOption = paymentOptions.find((option) => option.id === paymentMethod);
+    if (currentOption && !currentOption.disabled) return;
+
     const firstAvailable = paymentOptions.find((option) => !option.disabled);
     if (firstAvailable) {
       setPaymentMethod(firstAvailable.id);
     }
-  }, [paymentOptions]);
+  }, [paymentOptions, paymentMethod]);
 
   const completeCheckoutSuccess = async (order: Order) => {
     await refreshWallet();
@@ -453,7 +456,7 @@ function PedidoContent() {
         </div>
       </header>
 
-      <main className="px-4 py-6 pb-32">
+      <main className="px-4 py-6 pb-44">
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center text-4xl">
@@ -707,7 +710,7 @@ function PedidoContent() {
       </main>
 
       {items.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-background border-t border-border px-4 py-4 pb-8">
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-background border-t border-border px-4 py-4 pb-8">
           <Button
             onClick={() => void handleConfirm()}
             disabled={isConfirming || !canPayWithCard}

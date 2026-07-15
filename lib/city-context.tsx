@@ -14,7 +14,7 @@ import { getErrorMessage } from '@/lib/api/errors';
 import { loadJson, saveJson } from '@/lib/storage';
 import type { City } from '@/lib/types/city';
 
-const SELECTED_CITY_KEY = 'event-app:selected-city';
+const SELECTED_CITY_KEY = 'fichaqui-frontend:selected-city';
 
 interface CityContextType {
   hydrated: boolean;

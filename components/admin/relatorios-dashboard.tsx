@@ -9,9 +9,11 @@ import {
   BarChart3,
   PieChart,
   RefreshCw,
+  Store,
 } from 'lucide-react';
 import { fetchEventReport } from '@/lib/api/reports';
 import { getErrorMessage } from '@/lib/api/errors';
+import { formatBrl } from '@/lib/format/money';
 import { cn } from '@/lib/utils';
 import { AdminSubpageHeader } from '@/components/admin/admin-subpage-header';
 import { ProductImage } from '@/components/product-image';
@@ -83,9 +85,7 @@ export function RelatoriosDashboard({ eventId }: { eventId: string }) {
                 className="rounded-2xl bg-gradient-to-br from-green-500 to-green-600 p-4 text-white"
               >
                 <DollarSign className="h-8 w-8 opacity-80" />
-                <p className="mt-2 text-3xl font-bold">
-                  R$ {report.totalRevenue.toFixed(2).replace('.', ',')}
-                </p>
+                <p className="mt-2 text-3xl font-bold">{formatBrl(report.totalRevenue)}</p>
                 <p className="text-sm opacity-80">Vendas totais</p>
               </motion.div>
 
@@ -107,9 +107,7 @@ export function RelatoriosDashboard({ eventId }: { eventId: string }) {
                 className="rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 p-4 text-white"
               >
                 <TrendingUp className="h-8 w-8 opacity-80" />
-                <p className="mt-2 text-3xl font-bold">
-                  R$ {report.averageTicket.toFixed(2).replace('.', ',')}
-                </p>
+                <p className="mt-2 text-3xl font-bold">{formatBrl(report.averageTicket)}</p>
                 <p className="text-sm opacity-80">Ticket médio</p>
               </motion.div>
             </div>
@@ -143,7 +141,59 @@ export function RelatoriosDashboard({ eventId }: { eventId: string }) {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.35 }}
+              className="rounded-2xl bg-card p-4 shadow-sm border border-border"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Store className="h-5 w-5 text-primary" />
+                <h2 className="font-bold text-foreground">Vendas por Barraca</h2>
+              </div>
+
+              <div className="space-y-3">
+                {report.salesByStall
+                  .filter((stall) => stall.revenue > 0)
+                  .map((stall, index) => (
+                    <div key={stall.stallId}>
+                      <div className="flex items-center justify-between mb-1 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="h-3 w-3 rounded-full shrink-0"
+                            style={{ backgroundColor: stall.color }}
+                          />
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {stall.name}
+                          </span>
+                        </div>
+                        <span className="text-sm text-muted-foreground shrink-0">
+                          {formatBrl(stall.revenue)} · {stall.percentage}%
+                        </span>
+                      </div>
+                      <div className="h-3 bg-secondary rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${stall.percentage}%` }}
+                          transition={{ delay: 0.45 + index * 0.1, duration: 0.5 }}
+                          className="h-full rounded-full bg-primary"
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {stall.orderCount}{' '}
+                        {stall.orderCount === 1 ? 'pedido' : 'pedidos'}
+                      </p>
+                    </div>
+                  ))}
+                {report.salesByStall.filter((stall) => stall.revenue > 0).length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Nenhuma venda confirmada neste evento.
+                  </p>
+                )}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
               className="rounded-2xl bg-card p-4 shadow-sm border border-border"
             >
               <div className="flex items-center gap-2 mb-4">
@@ -196,7 +246,7 @@ export function RelatoriosDashboard({ eventId }: { eventId: string }) {
                       <p className="text-xs text-muted-foreground">{product.sales} vendidos</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-foreground">R$ {product.revenue.toFixed(2)}</p>
+                      <p className="font-bold text-foreground">{formatBrl(product.revenue)}</p>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                         #{index + 1}
                       </span>

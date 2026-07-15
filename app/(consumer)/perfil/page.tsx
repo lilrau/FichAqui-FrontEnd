@@ -40,7 +40,7 @@ const readOnlyInputClass =
 
 export default function PerfilPage() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const [form, setForm] = useState<EditableProfile>({ name: '', phone: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -236,7 +236,10 @@ export default function PerfilPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           type="button"
-          onClick={() => router.push('/')}
+          onClick={() => {
+            void logout();
+            router.push('/');
+          }}
           className={cn(
             'flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-4 text-sm font-semibold text-destructive'
           )}

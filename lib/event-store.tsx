@@ -58,6 +58,7 @@ interface EventStoreContextType {
   getEventsByOrganizerId: (organizerId: string) => Event[];
   createEvent: (input: CreateEventInput) => Promise<Event>;
   updateEvent: (id: string, patch: Partial<Event>) => Promise<void>;
+  replaceEvent: (event: Event) => void;
   addStall: (
     eventId: string,
     stall: Omit<Stall, 'id' | 'eventId'> & { id?: string }
@@ -273,6 +274,10 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
     setEvents((prev) => prev.map((event) => (event.id === id ? updated : event)));
   }, []);
 
+  const replaceEvent = useCallback((event: Event) => {
+    setEvents((prev) => prev.map((entry) => (entry.id === event.id ? event : entry)));
+  }, []);
+
   const addStall = useCallback(
     async (
       eventId: string,
@@ -364,6 +369,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       getEventsByOrganizerId,
       createEvent,
       updateEvent,
+      replaceEvent,
       addStall,
       updateStall,
       deleteStall,
@@ -393,6 +399,7 @@ export function EventStoreProvider({ children }: { children: ReactNode }) {
       getEventsByOrganizerId,
       createEvent,
       updateEvent,
+      replaceEvent,
       addStall,
       updateStall,
       deleteStall,

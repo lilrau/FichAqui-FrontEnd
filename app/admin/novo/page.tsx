@@ -15,6 +15,7 @@ import {
   hasResolvedEventAddress,
 } from '@/components/admin/event-location-fields';
 import { getErrorMessage } from '@/lib/api/errors';
+import { withSyncedEventImage } from '@/lib/event-image';
 import { resolveEventAddress } from '@/lib/google-maps/resolve-event-address';
 
 export default function NovoEventoPage() {
@@ -32,11 +33,11 @@ export default function NovoEventoPage() {
     location: '',
     cityId: '',
     organizerId: user?.organizerId ?? '',
-    banner: '/festa-banner.jpg',
+    banner: '',
     status: 'draft',
     capacity: 200,
     primaryColor: '#d97706',
-    icon: '🎪',
+    icon: '',
     latitude: null,
     longitude: null,
   });
@@ -62,11 +63,11 @@ export default function NovoEventoPage() {
         setEvent(payload);
       }
 
-      const created = await createEvent({
+      const created = await createEvent(withSyncedEventImage({
         ...payload,
         organizerId: user.organizerId,
         status: 'draft',
-      });
+      }));
       router.push(`/admin/${created.id}`);
     } catch (error) {
       setSaveError(getErrorMessage(error, 'Não foi possível criar o evento.'));

@@ -3,11 +3,14 @@
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { OrganizerEventsStrip } from '@/components/admin/organizer-events-strip';
 import { ChevronDown, LogOut } from 'lucide-react';
+import {
+  formatEventScheduleMeta,
+  getEventStatusLabel,
+} from '@/lib/event-routing';
 import { useEventStore } from '@/lib/event-store';
 import { useAppReady } from '@/lib/event-context';
-import { isImageUrl } from '@/lib/catalog/product-images';
+import { EventAvatar } from '@/components/event-avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +63,7 @@ export default function AdminEventLayout({
   }
 
   const otherEvents = events.filter((e) => e.id !== eventId);
+  const scheduleMeta = formatEventScheduleMeta(event);
 
   return (
     <div className="min-h-screen bg-background">
@@ -71,11 +75,7 @@ export default function AdminEventLayout({
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-primary-foreground/20 flex items-center justify-center text-xl">
-                {event.icon && isImageUrl(event.icon) ? (
-                  <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
-                ) : (
-                  event.icon ?? '🎪'
-                )}
+                <EventAvatar event={event} emojiClassName="text-xl" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm opacity-80 truncate">Painel Administrativo</p>
@@ -113,17 +113,16 @@ export default function AdminEventLayout({
                   : 'h-2 w-2 rounded-full bg-gray-300'
               }
             />
-            <span className="capitalize">{event.status}</span>
-            <span>•</span>
-            <span>
-              {event.startTime} – {event.endTime}
-            </span>
+            <span>{getEventStatusLabel(event.status)}</span>
+            {scheduleMeta && (
+              <>
+                <span>•</span>
+                <span>{scheduleMeta}</span>
+              </>
+            )}
           </div>
         </div>
       </header>
-      <div className="px-4 pt-4">
-        <OrganizerEventsStrip currentEventId={eventId} title="Outros eventos seus" />
-      </div>
       {children}
     </div>
   );

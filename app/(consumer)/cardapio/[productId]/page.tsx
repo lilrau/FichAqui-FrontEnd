@@ -2,7 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Flame, LogIn, ShoppingBag, Store } from 'lucide-react';
+import { ChevronLeft, Flame, LogIn, ShoppingCart, Store } from 'lucide-react';
 import Link from 'next/link';
 import { getCardapioByProductId, getStallById } from '@/lib/menu-utils';
 import { useCart } from '@/lib/cart-context';
@@ -13,7 +13,7 @@ import { ConsumerLoading } from '@/components/consumer-loading';
 import { ProductPriceDisplay } from '@/components/product-price-display';
 import { ProductImage } from '@/components/product-image';
 import { OfferingVariantRow } from '@/components/menu-item-card';
-import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
+import { CartSheet, FloatingCartActions } from '@/components/cart-sheet';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -77,7 +77,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     <div
       className={cn(
         'min-h-screen bg-background',
-        itemCount > 0 ? 'pb-56' : 'pb-24'
+        itemCount > 0 ? 'pb-80' : 'pb-24'
       )}
     >
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border">
@@ -96,7 +96,7 @@ export default function ProductPage({ params }: ProductPageProps) {
               onClick={() => setIsCartOpen(true)}
               className="relative flex shrink-0 items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary"
             >
-              <ShoppingBag className="h-4 w-4" />
+              <ShoppingCart className="h-4 w-4" />
               Carrinho
               {itemCount > 0 && (
                 <span
@@ -213,9 +213,13 @@ export default function ProductPage({ params }: ProductPageProps) {
         )}
       </main>
 
-      <FloatingOrderButton
+      <FloatingCartActions
         visible={itemCount > 0}
-        onClick={() => router.push('/pedido')}
+        onCheckout={() => router.push('/pedido')}
+        onContinueBrowsing={() =>
+          router.push(buildConsumerEventHref('/cardapio', eventId))
+        }
+        continueLabel="Continuar no cardápio"
       />
 
       <CartSheet

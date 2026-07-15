@@ -160,15 +160,23 @@ export function StallOfferingsModal({ stall, onClose }: StallOfferingsModalProps
                           <Input
                             type="number"
                             min="0"
-                            step="0.5"
+                            step="1"
+                            inputMode="numeric"
                             value={variant.price}
                             disabled={!variant.available}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              const raw = event.target.value;
+                              if (raw === '') {
+                                handleVariantChange(offering, template.id, { price: 0 });
+                                return;
+                              }
+                              const parsed = Number(raw);
+                              if (!Number.isFinite(parsed)) return;
                               handleVariantChange(offering, template.id, {
-                                price: Number(event.target.value),
-                              })
-                            }
-                            className="h-10 w-24 rounded-lg text-right"
+                                price: Math.max(0, Math.round(parsed)),
+                              });
+                            }}
+                            className="h-10 w-24 rounded-lg text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           />
                         </div>
                       );

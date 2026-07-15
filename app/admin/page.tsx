@@ -15,15 +15,9 @@ import { useEventStore } from '@/lib/event-store';
 import { useCity } from '@/lib/city-context';
 import { cityLabel } from '@/lib/types/city';
 import { Button } from '@/components/ui/button';
-import { isImageUrl } from '@/lib/catalog/product-images';
+import { EventAvatar } from '@/components/event-avatar';
+import { formatEventTimeRange, getEventStatusLabel } from '@/lib/event-routing';
 import { cn } from '@/lib/utils';
-
-const statusLabels: Record<string, string> = {
-  draft: 'Rascunho',
-  published: 'Publicado',
-  active: 'Ativo',
-  finished: 'Finalizado',
-};
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-500/10 text-gray-600',
@@ -119,11 +113,7 @@ export default function AdminHubPage() {
                     className="relative h-12 w-12 overflow-hidden rounded-xl flex items-center justify-center text-xl shrink-0"
                     style={{ backgroundColor: `${event.primaryColor}22` }}
                   >
-                    {event.icon && isImageUrl(event.icon) ? (
-                      <img src={event.icon} alt={event.name} className="h-full w-full object-cover" />
-                    ) : (
-                      event.icon ?? '🎪'
-                    )}
+                    <EventAvatar event={event} emojiClassName="text-xl" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-foreground truncate">{event.name}</p>
@@ -146,11 +136,13 @@ export default function AdminHubPage() {
                           statusColors[event.status]
                         )}
                       >
-                        {statusLabels[event.status]}
+                        {getEventStatusLabel(event.status)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {event.startTime} – {event.endTime}
-                      </span>
+                      {formatEventTimeRange(event.startTime, event.endTime) && (
+                        <span className="text-xs text-muted-foreground">
+                          {formatEventTimeRange(event.startTime, event.endTime)}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">

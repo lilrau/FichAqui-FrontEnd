@@ -227,43 +227,85 @@ export function FloatingCartButton({ visible, onClick }: FloatingCartButtonProps
   );
 }
 
-interface FloatingOrderButtonProps {
+interface FloatingCartActionsProps {
   visible: boolean;
-  onClick: () => void;
+  onCheckout: () => void;
+  onContinueBrowsing?: () => void;
+  continueLabel?: string;
 }
 
-export function FloatingOrderButton({ visible, onClick }: FloatingOrderButtonProps) {
-  const { total } = useCart();
+export function FloatingCartActions({
+  visible,
+  onCheckout,
+  onContinueBrowsing,
+  continueLabel = 'Continuar no cardápio',
+}: FloatingCartActionsProps) {
+  const { itemCount, total } = useCart();
 
   return (
     <BodyPortal>
       <AnimatePresence>
         {visible && (
-          <motion.button
-            key="floating-order"
+          <motion.div
+            key="floating-cart-actions"
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onClick}
-            className={cn(
-              'fixed bottom-32 left-4 right-4 z-50',
-              'flex items-center justify-between gap-3',
-              'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
-              'text-primary-foreground'
-            )}
+            className="fixed bottom-32 left-4 right-4 z-50 flex flex-col gap-2"
           >
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
-                <ShoppingBag className="h-5 w-5" />
+            {onContinueBrowsing && (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.98 }}
+                onClick={onContinueBrowsing}
+                className={cn(
+                  'flex h-12 items-center justify-center rounded-2xl border border-border',
+                  'bg-card/95 px-5 text-sm font-medium text-foreground backdrop-blur-sm',
+                  'shadow-sm'
+                )}
+              >
+                {continueLabel}
+                {itemCount > 0 && (
+                  <span className="ml-2 text-muted-foreground">
+                    · {itemCount} {itemCount === 1 ? 'item' : 'itens'}
+                  </span>
+                )}
+              </motion.button>
+            )}
+
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.98 }}
+              onClick={onCheckout}
+              className={cn(
+                'flex items-center justify-between gap-3',
+                'h-16 rounded-2xl bg-primary px-5 shadow-lg shadow-primary/30',
+                'text-primary-foreground'
+              )}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/20">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <span className="truncate text-left font-semibold">Pagar e emitir fichas</span>
               </div>
-              <span className="truncate text-left font-semibold">Pagar e emitir fichas</span>
-            </div>
-            <span className="shrink-0 text-lg font-bold">R$ {total.toFixed(2)}</span>
-          </motion.button>
+              <span className="shrink-0 text-lg font-bold">R$ {total.toFixed(2)}</span>
+            </motion.button>
+          </motion.div>
         )}
       </AnimatePresence>
     </BodyPortal>
   );
+}
+
+/** @deprecated Use FloatingCartActions */
+export function FloatingOrderButton({
+  visible,
+  onClick,
+}: {
+  visible: boolean;
+  onClick: () => void;
+}) {
+  return <FloatingCartActions visible={visible} onCheckout={onClick} />;
 }
