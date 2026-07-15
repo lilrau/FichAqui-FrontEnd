@@ -21,6 +21,7 @@ export function normalizeUser(dto: {
   roles?: string[];
   organizerId?: string | null;
   stallId?: string | null;
+  stallName?: string | null;
   eventId?: string | null;
 }): SessionUser {
   const roles = new Set<UserRole>();
@@ -46,6 +47,7 @@ export function normalizeUser(dto: {
     roles: [...roles],
     organizerId: dto.organizerId ?? null,
     stallId: dto.stallId ?? null,
+    stallName: dto.stallName ?? null,
     eventId: dto.eventId ?? null,
   };
 }
