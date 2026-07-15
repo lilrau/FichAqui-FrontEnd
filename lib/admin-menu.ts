@@ -42,10 +42,10 @@ export function getAdminMenu(eventId: string): AdminMenuItem[] {
       description: 'Vendas e estatísticas',
     },
     {
-      label: 'Configurações',
+      label: 'Minha conta',
       icon: Settings,
-      href: '/admin/config',
-      description: 'Configurações do sistema',
+      href: `${base}/config`,
+      description: 'Dados pessoais e preferências',
     },
   ];
 }

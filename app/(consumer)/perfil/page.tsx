@@ -1,73 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
   User,
-  LogOut,
   Shield,
   ChevronRight,
   KeyRound,
   CreditCard,
-  Palette,
 } from 'lucide-react';
-import { ThemeSelector } from '@/components/theme-selector';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useAuth } from '@/lib/auth-context';
-import { updateProfileApi } from '@/lib/api/profile';
-import { getErrorMessage } from '@/lib/api/errors';
-import { cn } from '@/lib/utils';
-
-type EditableProfile = {
-  name: string;
-  phone: string;
-};
-
-function formatPhone(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 2) return digits.length ? `(${digits}` : '';
-  if (digits.length <= 7) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  }
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-}
-
-const readOnlyInputClass =
-  'bg-muted/50 text-muted-foreground cursor-default focus-visible:ring-0 focus-visible:border-input';
+import { ProfileFormCard } from '@/components/account/profile-form-card';
+import { ThemeSettingsCard } from '@/components/account/theme-settings-card';
+import { AccountLogoutButton } from '@/components/account/account-logout-button';
 
 export default function PerfilPage() {
   const router = useRouter();
-  const { user, refreshUser, logout } = useAuth();
-  const [form, setForm] = useState<EditableProfile>({ name: '', phone: '' });
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    setForm({
-      name: user.name,
-      phone: user.phone ?? '',
-    });
-  }, [user]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveError(null);
-    try {
-      await updateProfileApi({ name: form.name, phone: form.phone });
-      await refreshUser();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (error) {
-      setSaveError(getErrorMessage(error, 'Não foi possível salvar o perfil.'));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -92,95 +39,16 @@ export default function PerfilPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-2xl bg-card border border-border px-4 py-4 space-y-4"
         >
-          <div className="space-y-2">
-            <Label htmlFor="profile-name">Nome</Label>
-            <Input
-              id="profile-name"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              autoComplete="name"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="profile-email">E-mail</Label>
-            <Input
-              id="profile-email"
-              type="email"
-              value={user?.email ?? ''}
-              readOnly
-              tabIndex={-1}
-              aria-readonly
-              className={readOnlyInputClass}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="profile-phone">Telefone</Label>
-            <Input
-              id="profile-phone"
-              type="tel"
-              inputMode="tel"
-              value={form.phone}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))
-              }
-              autoComplete="tel"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="profile-cpf">CPF</Label>
-            <Input
-              id="profile-cpf"
-              value={user?.cpf ?? '—'}
-              readOnly
-              tabIndex={-1}
-              aria-readonly
-              className={readOnlyInputClass}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="profile-birth-date">Data de nascimento</Label>
-            <Input
-              id="profile-birth-date"
-              value={user?.birthDate ?? '—'}
-              readOnly
-              tabIndex={-1}
-              aria-readonly
-              className={readOnlyInputClass}
-            />
-          </div>
-
-          {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-
-          <Button
-            type="button"
-            className="w-full h-11 rounded-xl"
-            onClick={() => void handleSave()}
-            disabled={saving}
-          >
-            {saved ? 'Salvo!' : saving ? 'Salvando…' : 'Salvar'}
-          </Button>
+          <ProfileFormCard />
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
-          className="rounded-2xl bg-card border border-border px-4 py-4 space-y-4"
         >
-          <div className="flex items-center gap-3">
-            <Palette className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Tema</p>
-              <p className="text-xs text-muted-foreground">Aparência do aplicativo</p>
-            </div>
-          </div>
-          <ThemeSelector />
+          <ThemeSettingsCard />
         </motion.div>
 
         <motion.div
@@ -231,22 +99,16 @@ export default function PerfilPage() {
           </button>
         </motion.div>
 
-        <motion.button
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          type="button"
-          onClick={() => {
-            void logout();
-            router.push('/');
-          }}
-          className={cn(
-            'flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-4 text-sm font-semibold text-destructive'
-          )}
         >
-          <LogOut className="h-4 w-4" />
-          Sair
-        </motion.button>
+          <AccountLogoutButton
+            label="Sair"
+            className="rounded-xl border border-border bg-card py-4 text-sm"
+          />
+        </motion.div>
       </main>
     </div>
   );
