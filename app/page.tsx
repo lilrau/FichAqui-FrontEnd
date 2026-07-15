@@ -20,7 +20,7 @@ import { useCity } from '@/lib/city-context';
 import { useActiveEvent } from '@/lib/event-context';
 import { useEventStore } from '@/lib/event-store';
 import { cityLabel } from '@/lib/types/city';
-import { formatEventDate } from '@/lib/event-routing';
+import { formatEventDate, formatEventTimeRange } from '@/lib/event-routing';
 import { isImageUrl } from '@/lib/catalog/product-images';
 import { cn } from '@/lib/utils';
 import type { Event } from '@/lib/types/event-domain';
@@ -244,10 +244,12 @@ export default function HomePage() {
                               <Calendar className="h-3 w-3" />
                               {formatEventDate(event.date)}
                             </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {event.startTime} – {event.endTime}
-                            </span>
+                            {formatEventTimeRange(event.startTime, event.endTime) && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatEventTimeRange(event.startTime, event.endTime)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

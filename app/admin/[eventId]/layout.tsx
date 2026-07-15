@@ -5,6 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { OrganizerEventsStrip } from '@/components/admin/organizer-events-strip';
 import { ChevronDown, LogOut } from 'lucide-react';
+import {
+  formatEventScheduleMeta,
+  getEventStatusLabel,
+} from '@/lib/event-routing';
 import { useEventStore } from '@/lib/event-store';
 import { useAppReady } from '@/lib/event-context';
 import { isImageUrl } from '@/lib/catalog/product-images';
@@ -60,6 +64,7 @@ export default function AdminEventLayout({
   }
 
   const otherEvents = events.filter((e) => e.id !== eventId);
+  const scheduleMeta = formatEventScheduleMeta(event);
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,11 +118,13 @@ export default function AdminEventLayout({
                   : 'h-2 w-2 rounded-full bg-gray-300'
               }
             />
-            <span className="capitalize">{event.status}</span>
-            <span>•</span>
-            <span>
-              {event.startTime} – {event.endTime}
-            </span>
+            <span>{getEventStatusLabel(event.status)}</span>
+            {scheduleMeta && (
+              <>
+                <span>•</span>
+                <span>{scheduleMeta}</span>
+              </>
+            )}
           </div>
         </div>
       </header>

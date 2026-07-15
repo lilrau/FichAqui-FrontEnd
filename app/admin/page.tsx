@@ -16,14 +16,8 @@ import { useCity } from '@/lib/city-context';
 import { cityLabel } from '@/lib/types/city';
 import { Button } from '@/components/ui/button';
 import { isImageUrl } from '@/lib/catalog/product-images';
+import { formatEventTimeRange, getEventStatusLabel } from '@/lib/event-routing';
 import { cn } from '@/lib/utils';
-
-const statusLabels: Record<string, string> = {
-  draft: 'Rascunho',
-  published: 'Publicado',
-  active: 'Ativo',
-  finished: 'Finalizado',
-};
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-500/10 text-gray-600',
@@ -146,11 +140,13 @@ export default function AdminHubPage() {
                           statusColors[event.status]
                         )}
                       >
-                        {statusLabels[event.status]}
+                        {getEventStatusLabel(event.status)}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {event.startTime} – {event.endTime}
-                      </span>
+                      {formatEventTimeRange(event.startTime, event.endTime) && (
+                        <span className="text-xs text-muted-foreground">
+                          {formatEventTimeRange(event.startTime, event.endTime)}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">

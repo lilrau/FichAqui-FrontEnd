@@ -39,3 +39,38 @@ export function formatEventDate(dateIso: string): string {
     month: 'long',
   });
 }
+
+const EVENT_STATUS_LABELS: Record<string, string> = {
+  draft: 'Rascunho',
+  published: 'Publicado',
+  active: 'Ativo',
+  finished: 'Finalizado',
+};
+
+export function getEventStatusLabel(status: string): string {
+  return EVENT_STATUS_LABELS[status] ?? status;
+}
+
+export function formatEventTimeRange(startTime: string, endTime: string): string | null {
+  const start = startTime.trim();
+  const end = endTime.trim();
+
+  if (start && end) return `${start} – ${end}`;
+  if (start) return start;
+  if (end) return end;
+
+  return null;
+}
+
+export function formatEventScheduleMeta(event: {
+  date: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+}): string | null {
+  return (
+    formatEventTimeRange(event.startTime, event.endTime) ??
+    (event.date.trim() ? formatEventDate(event.date) : null) ??
+    (event.location.trim() || null)
+  );
+}
