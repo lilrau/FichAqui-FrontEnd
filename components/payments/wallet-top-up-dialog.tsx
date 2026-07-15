@@ -15,6 +15,10 @@ import { hasPendingPix, hasPendingCardPayment } from '@/lib/api/normalize-paymen
 import { getErrorMessage } from '@/lib/api/errors';
 import { usePaymentsConfig } from '@/lib/hooks/use-payments-config';
 import { useWallet } from '@/lib/wallet-context';
+import {
+  isTokenizedSavedCard,
+  pickDefaultSavedCard,
+} from '@/lib/wallet/saved-cards';
 import type { CardPaymentType, PaymentInfo } from '@/lib/types/payment';
 import { cn } from '@/lib/utils';
 
@@ -30,7 +34,7 @@ export function WalletTopUpDialog({
   onSuccess,
 }: WalletTopUpDialogProps) {
   const { config } = usePaymentsConfig();
-  const { savedCards, defaultCard, refreshWallet } = useWallet();
+  const { savedCards, refreshWallet } = useWallet();
   const mpFormRef = useRef<MpCardFormHandle>(null);
   const savedCardFormRef = useRef<MpSavedCardFormHandle>(null);
 
@@ -49,16 +53,20 @@ export function WalletTopUpDialog({
   const amountValid = Number.isFinite(parsedAmount) && parsedAmount >= 1;
   const mpEnabled = config.enabled && Boolean(config.publicKey);
   const pixEnabled = config.pixEnabled || config.topUpEnabled;
-  const cardEnabled = config.cardEnabled && (mpEnabled || savedCards.length > 0);
+  const cardEnabled =
+    config.cardEnabled && (mpEnabled || savedCards.length > 0);
   const canUseSavedCard = savedCards.length > 0;
+  const selectedSavedCard = savedCards.find((card) => card.id === selectedCardId);
+  const selectedCardIsTokenized = selectedSavedCard
+    ? isTokenizedSavedCard(selectedSavedCard)
+    : false;
 
   useEffect(() => {
-    if (defaultCard) {
-      setSelectedCardId(defaultCard.id);
-    } else if (savedCards[0]) {
-      setSelectedCardId(savedCards[0].id);
+    const preferred = pickDefaultSavedCard(savedCards);
+    if (preferred) {
+      setSelectedCardId(preferred.id);
     }
-  }, [defaultCard, savedCards]);
+  }, [savedCards]);
 
   useEffect(() => {
     if (savedCards.length === 0) {
@@ -81,8 +89,11 @@ export function WalletTopUpDialog({
     (paymentMethod === 'pix'
       ? pixEnabled
       : cardMode === 'saved'
-        ? canUseSavedCard && Boolean(selectedCardId) && (!mpEnabled || savedCardFormReady)
-        : (!mpEnabled || (mpEnabled && mpFormReady)));
+        ? canUseSavedCard &&
+          Boolean(selectedCardId) &&
+          selectedCardIsTokenized &&
+          (!mpEnabled || savedCardFormReady)
+        : !mpEnabled || (mpEnabled && mpFormReady));
 
   const handleTopUp = async () => {
     if (!canPay) return;
@@ -316,6 +327,7 @@ export function WalletTopUpDialog({
                   <div className="space-y-3">
                     {savedCards.map((card) => {
                       const selected = selectedCardId === card.id;
+                      const tokenized = isTokenizedSavedCard(card);
                       return (
                         <div
                           key={card.id}
@@ -352,7 +364,23 @@ export function WalletTopUpDialog({
                               </span>
                             )}
                           </label>
-                          {selected && mpEnabled && config.publicKey && (
+                          {selected && !tokenized && (
+                            <div className="border-t border-border bg-muted/30 px-3 py-3 rounded-b-xl">
+                              <p className="text-xs text-muted-foreground">
+                                Este cartão ainda não está ativo no Mercado Pago. Use{' '}
+                                <button
+                                  type="button"
+                                  className="font-medium text-primary underline-offset-2 hover:underline"
+                                  onClick={() => setCardMode('new')}
+                                >
+                                  Novo cartão
+                                </button>{' '}
+                                e marque &quot;Salvar cartão&quot;, ou cadastre em Métodos de
+                                pagamento.
+                              </p>
+                            </div>
+                          )}
+                          {selected && tokenized && mpEnabled && config.publicKey && (
                             <div className="border-t border-primary/10 bg-background/60 px-3 py-3 rounded-b-xl space-y-1.5">
                               <label className="text-xs font-semibold text-foreground">
                                 Código de segurança (CVV)

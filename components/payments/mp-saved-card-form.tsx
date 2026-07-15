@@ -116,9 +116,15 @@ export const MpSavedCardForm = forwardRef<MpSavedCardFormHandle, MpSavedCardForm
     const securityFieldRef = useRef<MpSecureField | null>(null);
     const [ready, setReady] = useState(false);
 
-    const cardIdForMp = card.mercadoPagoCardId || card.id;
+    const cardIdForMp = card.mercadoPagoCardId;
 
     const createToken = async (): Promise<string> => {
+      if (!cardIdForMp) {
+        throw new Error(
+          'Este cartão não está vinculado ao Mercado Pago. Use “Novo cartão”.'
+        );
+      }
+
       if (!mpRef.current || !securityFieldRef.current) {
         throw new Error('Campo de CVV ainda não carregou.');
       }
@@ -156,6 +162,13 @@ export const MpSavedCardForm = forwardRef<MpSavedCardFormHandle, MpSavedCardForm
       let securityField: MpSecureField | null = null;
 
       const mountField = async () => {
+        if (!cardIdForMp) {
+          onError?.(
+            'Este cartão não está vinculado ao Mercado Pago. Use “Novo cartão”.'
+          );
+          return;
+        }
+
         try {
           await loadMercadoPagoSdk();
           if (cancelled) return;
