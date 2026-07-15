@@ -6,9 +6,11 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useEffect,
   ReactNode,
 } from 'react';
 import { useEventId } from '@/lib/event-context';
+import { loadJson, saveJson } from '@/lib/storage';
 import type { MenuItem, Order } from '@/lib/types/event-domain';
 
 interface CartItem {
@@ -31,6 +33,8 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const CARTS_STORAGE_KEY = 'fichaqui-frontend:carts';
+
 type CartsByEvent = Record<string, CartItem[]>;
 type CurrentOrderByEvent = Record<string, Order | null>;
 
@@ -39,6 +43,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const [cartsByEvent, setCartsByEvent] = useState<CartsByEvent>({});
   const [currentOrderByEvent, setCurrentOrderByEvent] = useState<CurrentOrderByEvent>({});
+  const [persistReady, setPersistReady] = useState(false);
+
+  useEffect(() => {
+    setCartsByEvent(loadJson<CartsByEvent>(CARTS_STORAGE_KEY, {}));
+    setPersistReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!persistReady) return;
+    saveJson(CARTS_STORAGE_KEY, cartsByEvent);
+  }, [cartsByEvent, persistReady]);
 
   const items = cartsByEvent[eventId] ?? [];
   const currentOrder = currentOrderByEvent[eventId] ?? null;

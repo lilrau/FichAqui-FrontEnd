@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { LogIn, MapPin, Search, ShoppingBag, Wallet } from 'lucide-react';
+import { LogIn, MapPin, Search, ShoppingCart, Wallet } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { isFichaValid } from '@/lib/types/event-domain';
 import { useEventStore } from '@/lib/event-store';
@@ -13,7 +13,7 @@ import { useActiveEvent, useEventId } from '@/lib/event-context';
 import { cardapioMatchesSearch } from '@/lib/menu-utils';
 import { MenuItemCard } from '@/components/menu-item-card';
 import { CategoryPills } from '@/components/category-pills';
-import { CartSheet, FloatingOrderButton } from '@/components/cart-sheet';
+import { CartSheet, FloatingCartActions } from '@/components/cart-sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-context';
@@ -87,7 +87,7 @@ function CardapioContent() {
                     className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors hover:bg-primary/15"
                     aria-label="Abrir carrinho"
                   >
-                    <ShoppingBag className="h-5 w-5" />
+                    <ShoppingCart className="h-5 w-5" />
                     {itemCount > 0 && (
                       <span
                         className={cn(
@@ -194,9 +194,9 @@ function CardapioContent() {
         )}
       </main>
 
-      <FloatingOrderButton
+      <FloatingCartActions
         visible={itemCount > 0}
-        onClick={() => router.push('/pedido')}
+        onCheckout={() => router.push('/pedido')}
       />
 
       <CartSheet

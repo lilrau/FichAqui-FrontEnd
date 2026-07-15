@@ -79,8 +79,12 @@ Tela do admin para monitoramento e auditoria de pedidos e fichas. Somente leitur
 _Avoid_: Gestão de entregas, fila de preparo
 
 **Relatório do Evento**:
-Visão agregada de vendas do Evento para o Organizador — receita, quantidade de Pedidos, ticket médio, vendas por hora/categoria e produtos mais vendidos. Derivado de Pedidos reais; não inclui contagem de visitantes físicos.
-_Avoid_: Analytics, dashboard, visitantes
+Visão agregada de vendas do Evento para o Organizador — receita, quantidade de Pedidos, ticket médio, vendas por hora/categoria, produtos mais vendidos e **vendas por Barraca**. Abrange **todo o período** do Evento (ou Estabelecimento). Derivado de Pedidos com pagamento confirmado; não inclui contagem de visitantes físicos.
+_Avoid_: Analytics, visitantes
+
+**Resumo operacional do Evento**:
+Três KPIs do **dia corrente** no fuso `America/Sao_Paulo`: Pedidos pagos hoje, receita de hoje e Consumidores distintos que compraram hoje. Exibido no painel inicial do admin do Evento — separado do Relatório do Evento (escopo completo). Inclui ranking **Barracas hoje** (receita por linha de item, pedidos distintos que tocaram a Barraca — um Pedido multi-barraca conta em cada uma — e progresso de **Retirada**: Fichas emitidas vs entregues no dia). Pedidos com **pagamento pendente** (ex.: PIX) não entram na receita nem na contagem confirmada; a API pode expor `pendingOrderCount` e o front exibe aviso discreto quando &gt; 0.
+_Avoid_: Dashboard, clientes, visitantes
 
 **Cardápio do Evento**:
 Visão do consumidor com todos os Produtos que possuem ao menos uma Oferta ativa em Barraca aberta no evento. Um card por Produto. Quando há preços diferentes entre Barracas, o card mostra "A partir de R$ X".
